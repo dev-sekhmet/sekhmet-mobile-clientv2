@@ -34,5 +34,5 @@ export const displayConversationName = (accountId:string, conversation: Conversa
             return attributes.userA.name;
         }
     }
-    return "Inconnue";
+    return null;
 };

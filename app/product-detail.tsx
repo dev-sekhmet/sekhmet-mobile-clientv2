@@ -9,6 +9,7 @@ import {Icon, ListItem} from "@rneui/themed";
 const width = Dimensions.get('screen').width;
 const height = Dimensions.get('screen').height;
 type CharacteristcItem = {
+    id: number;
     text: string;
     icon: string;
 };
@@ -18,18 +19,23 @@ export default function ProductDetail() {
 
     const characteristics: CharacteristcItem[] = [
         {
+            id: 1,
             icon: 'check',
             text: 'Dégraisse Progressivement'
         }, {
+            id: 2,
             icon: 'check',
             text: 'Baisse Le Taux De Glycémie'
         }, {
+            id: 3,
             icon: 'check',
             text: 'Baisse La Tension'
         }, {
+            id: 4,
             icon: 'check',
             text: 'Elimine Les Sensations De Faim'
         }, {
+            id: 5,
             icon: 'check',
             text: 'Perte Assuré De Poids Sainement'
         }
@@ -102,7 +108,8 @@ export default function ProductDetail() {
 
             <View>
                 {
-                    characteristics.map((item: CharacteristcItem)=> <RenderRow item={item}/>)
+                    characteristics.map((item: CharacteristcItem)=> <RenderRow key={item.id} item={item} />
+                    )
                 }
 
             </View>

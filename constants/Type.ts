@@ -17,7 +17,7 @@ export type TwilioProps = {
   twilioClient?: Client;
   conversation?: Conversation;
   unreadMessagesCount?: number;
-  lastMessage?: string;
+  lastMessage?: TwilioMessage;
   messages?: Message[];
 };
 
@@ -31,5 +31,5 @@ export enum TWILIO_ROLE {
   CHANNEL_ADMIN = 'CHANNEL_ADMIN'
 }
 
-export type Message = { msg: TwilioMessage, author: string | undefined | null, deleted?: boolean };
+export type Message = { twilioMessage: TwilioMessage, author: string | undefined | null, deleted?: boolean };
 export const APP_TIME_FORMAT = 'HH:mm';

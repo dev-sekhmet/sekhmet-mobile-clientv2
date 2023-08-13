@@ -1,5 +1,5 @@
 import {router, Stack} from 'expo-router';
-import {useColorScheme} from 'react-native';
+import {Platform, useColorScheme} from 'react-native';
 import {DarkTheme, DefaultTheme, ThemeProvider} from "@react-navigation/native";
 import useFirstLaunch from "../../hooks/useFirstLaunch";
 import React, {useEffect, useState} from "react";
@@ -16,13 +16,17 @@ export default function TabLayout() {
     const isFirstLaunch = useFirstLaunch();
     const [twilioClient, setTwilioClient] = useState<Client | undefined>(undefined);
     const [accountInfos, setAccountInfos] = useState<IUser | undefined>(undefined);
-    const [conversations, setConversations] = useState<Conversation[]>([]);
+
     const {account, loading: authLoading, isAuthenticated} = useAccount();
     const {token, loading: tokenLoading} = useToken();
     const [loadingConversations, setLoadingConversations] = useState(true);
-    const [conversationsPaginator, setConversationsPaginator] = useState<Paginator<Conversation> | null>(null);
+
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [conversationsPaginator, setConversationsPaginator] = useState<Paginator<Conversation> | undefined>(undefined);
     const [typingStatus, setTypingStatus] = useState<Map<string, TypingParticipant>>(new Map());
+
     const [messages, setMessages] = useState<Map<string, Message[]>>(new Map());
+    const [messagePaginator, setMessagePaginator] = useState<Map<string, Paginator<Message>>>(new Map());
 
     const fetchConversations = async (client: Client | null) => {
         setLoadingConversations(true);
@@ -38,21 +42,61 @@ export default function TabLayout() {
         }
     }
 
+    const fetchMessagesForConversation = async (conversation: Conversation) => {
+        try {
+            const messagePaginator = await conversation.getMessages();
+            setMessagePaginator(prev => {
+                const updatedPaginator = new Map(prev);
+                updatedPaginator.set(conversation.sid, messagePaginator);
+                return updatedPaginator;
+            });
+            setMessages(prev => {
+                const updatedMessages = new Map(prev);
+                updatedMessages.set(conversation.sid, messagePaginator.items);
+                return updatedMessages;
+            });
+        } catch (error) {
+            console.error('Error fetching messages:', error);
+        }
+    }
+
     const fetchMoreConversations = async () => {
-        console.log("fetchMoreConversations CALLED")
+        console.log("fetchMoreConversations CALLED", Platform.OS)
         if (!conversationsPaginator?.hasNextPage) return;
         setLoadingConversations(true);
         try {
             const paginator = await conversationsPaginator.nextPage();
             setConversationsPaginator(paginator);  // Save the new paginator
             setUniqueConversations(paginator.items);
-            console.log("CONV N", paginator.items.length)
         } catch (error) {
             console.error('Error fetching more conversations:', error);
         } finally {
             setLoadingConversations(false);
         }
     };
+
+    const fetchMoreMessages = async (conversationSid: string) => {
+        const currentPaginator = messagePaginator.get(conversationSid);
+        if (currentPaginator && currentPaginator.hasNextPage) {
+            try {
+                const newPaginator = await currentPaginator.nextPage();
+                setMessagePaginator(prev => {
+                    const updatedPaginator = new Map(prev);
+                    updatedPaginator.set(conversationSid, newPaginator);
+                    return updatedPaginator;
+                });
+                setMessages(prev => {
+                    const updatedMessages = new Map(prev);
+                    const allMessages = [...newPaginator.items, ...(prev.get(conversationSid) || [])];
+                    updatedMessages.set(conversationSid, allMessages);
+                    return updatedMessages;
+                });
+            } catch (error) {
+                console.error('Error fetching more messages:', error);
+            }
+        }
+    }
+
     const setUniqueConversations = (newConversations: Conversation[]) => {
         setConversations(prevConversations => {
             // Create a set to keep track of added SIDs
@@ -94,6 +138,10 @@ export default function TabLayout() {
         }
     };
 
+    const doesConversationExists = (conversation: Conversation) => {
+        return conversations.some(existingConversation => existingConversation.sid === conversation.sid);
+    }
+
     const initTwilio = () => {
         if (isAuthenticated && token && !authLoading && !tokenLoading) {
             const client = new Client(token)
@@ -119,6 +167,10 @@ export default function TabLayout() {
                     // Add this line to update the conversations state:
                     // Check if the conversation with the same sid is not already present
                     setUniqueConversations([conversation]);
+
+                    if (!doesConversationExists(conversation)) {
+                        await fetchMessagesForConversation(conversation);
+                    }
                 })
                 .on("conversationRemoved", (conversation: Conversation) => {
                     console.log('conversationRemoved', conversation.friendlyName);
@@ -194,6 +246,9 @@ export default function TabLayout() {
         fetchMoreConversations,
         typingStatus,
         messages,
+        fetchMoreMessages,
+        messagePaginator,
+        conversationsPaginator
     }}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>

@@ -50,7 +50,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
         setAsRead();
     }, [isMe, message]);
 
-    const msg = message.msg;
+    const msg = message.twilioMessage;
     useEffect(() => {
         if (msg.attachedMedia) {
             forkJoin(msg.attachedMedia.map(value => {
@@ -73,10 +73,10 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             });
         }
         const checkIfMe = async () => {
-            if (!message.msg.author) {
+            if (!message.twilioMessage.author) {
                 return;
             }
-            setIsMe(message.msg.author === authUser?.identity);
+            setIsMe(message.twilioMessage.author === authUser?.identity);
         };
         checkIfMe();
         if (!msg?.body) {
@@ -99,7 +99,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
     };
 
     const deleteMessage = async () => {
-        message.msg.remove();
+        message.twilioMessage.remove();
     };
 
 
@@ -152,7 +152,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             onActionPress
         );
     };
-    if (!message.msg.author) {
+    if (!message.twilioMessage.author) {
         return <ActivityIndicator/>;
     }
 

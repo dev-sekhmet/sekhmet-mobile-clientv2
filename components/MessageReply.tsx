@@ -75,9 +75,9 @@ const MessageReply = (props:  {message: Message}) => {
         >
             <View style={styles.row}>
                 {soundURI && <AudioPlayer soundURI={soundURI}/>}
-                {!!message.msg.body && (
+                {!!message.twilioMessage.body && (
                     <Text style={{color: isMe ? "black" : "white"}}>
-                        {message.msg.body}
+                        {message.twilioMessage.body}
                     </Text>
                 )}
 

@@ -2,7 +2,7 @@ import {Dimensions, FlatList, StyleSheet} from 'react-native';
 import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import * as React from "react";
 import {useContext, useEffect, useState} from "react";
-import {Conversation, Message} from "@twilio/conversations";
+import {Conversation} from "@twilio/conversations";
 import Colors from "../../../../constants/Colors";
 import {Text, View} from "../../../../components/Themed";
 import {Badge} from "@rneui/base";
@@ -25,7 +25,10 @@ export default function MessagesScreen() {
         twilioClient,
         conversations,
         loadingConversations,
-        fetchMoreConversations
+        fetchMoreConversations,
+        messages,
+        fetchMoreMessages,
+        messagePaginator,
     } = context;
 
     const [dualConversations, setDualConversations] = useState<Conversation[]>([]);
@@ -47,6 +50,60 @@ export default function MessagesScreen() {
 
 
   const Tab = createMaterialTopTabNavigator();
+
+    const getLastMessage = (conversationSid: string) => {
+        const conversationMessages = messages?.get(conversationSid);
+        if (conversationMessages && conversationMessages.length > 0) {
+            return conversationMessages[0];
+        }
+        return undefined;
+    }
+
+    const Discussion = ({conversations, onScroll, loadingConversations}: { conversations?: Conversation[], onScroll : any, loadingConversations?: boolean}) => {
+
+        return <View style={styles.container}>
+            <FlatList
+                data={conversations}
+                renderItem={({item}) => {
+                    const lastMessage = getLastMessage(item.sid);
+                    const unreadMessagesCount = 2
+                    return (
+                        <ChatItem
+                            key={item.sid}
+                            conversation={item}
+                            lastMessage={lastMessage}
+                            unreadMessagesCount={unreadMessagesCount}/>
+                    );
+                }}
+                onEndReached={onScroll}
+                onEndReachedThreshold={0.2}
+                keyExtractor={item => item.sid}
+            />
+            <NewConversation conversationInfo={{label: "Nouvelle discussion", type: CONVERSATION_TYPE.DUAL}}/>
+        </View>
+    }
+
+    const Groupes =  ({conversations, onScroll, loadingConversations}: { conversations?: Conversation[], onScroll : any, loadingConversations?: boolean}) => {
+
+        return <View style={styles.container}>
+            <FlatList
+                data={conversations}
+                renderItem={({item}) => {
+                    const unreadMessagesCount = 3
+                    const lastMessage = getLastMessage(item.sid);
+                    return (
+                        <ChatItem conversation={item}
+                                  lastMessage={lastMessage}
+                                  unreadMessagesCount={unreadMessagesCount}/>
+                    );
+                }}
+                onEndReached={onScroll}
+                onEndReachedThreshold={0.2}
+                keyExtractor={item => item.sid}
+            />
+            <NewConversation conversationInfo={{label: "Nouveau Groupe", type: CONVERSATION_TYPE.GROUP}}/>
+        </View>
+    }
 
   return (
       <Tab.Navigator initialRouteName={"Discussion"}
@@ -96,61 +153,6 @@ export default function MessagesScreen() {
   );
 }
 
-
-function getLastMessage(messages: Message[], typingData: string[]) {
-  if (messages === undefined || messages === null) {
-    return "Loading...";
-  }
-  if (messages.length === 0) {
-    return "No messages";
-  }
-  return messages[messages.length - 1].body;
-}
-
-const Discussion = ({conversations, onScroll, loadingConversations}: { conversations?: Conversation[], onScroll : any, loadingConversations?: boolean}) => {
-
-  return <View style={styles.container}>
-    <FlatList
-        data={conversations}
-        renderItem={({item}) => {
-          const unreadMessagesCount = 2
-          return (
-              <ChatItem
-                  key={item.sid}
-                  conversation={item}
-                        lastMessage='Last message'
-                        unreadMessagesCount={unreadMessagesCount}/>
-          );
-        }}
-        onEndReached={onScroll}
-        onEndReachedThreshold={0.2}
-        keyExtractor={item => item.sid}
-    />
-    <NewConversation conversationInfo={{label: "Nouvelle discussion", type: CONVERSATION_TYPE.DUAL}}/>
-  </View>
-}
-
-
-const Groupes =  ({conversations, onScroll, loadingConversations}: { conversations?: Conversation[], onScroll : any, loadingConversations?: boolean}) => {
-
-    return <View style={styles.container}>
-    <FlatList
-        data={conversations}
-        renderItem={({item}) => {
-          const unreadMessagesCount = 3
-          return (
-              <ChatItem conversation={item}
-                        lastMessage='Last message'
-                        unreadMessagesCount={unreadMessagesCount}/>
-          );
-        }}
-        onEndReached={onScroll}
-        onEndReachedThreshold={0.2}
-        keyExtractor={item => item.sid}
-    />
-    <NewConversation conversationInfo={{label: "Nouveau Groupe", type: CONVERSATION_TYPE.GROUP}}/>
-  </View>
-}
 const styles = StyleSheet.create({
   container: {
     flex: 1,

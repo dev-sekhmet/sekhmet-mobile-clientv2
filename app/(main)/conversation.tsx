@@ -23,109 +23,52 @@ function HeaderTitle({ title, typing }:{ title:string, typing :boolean}) {
         </View>
     );
 }
+
 const ConversationSrreen = () => {
     const {uniqueName} = useLocalSearchParams<any>();
-    const {twilioClient, typingStatus, messages: incominMessages} = useContext(AppContext);
-    const { conversation, isLoading, error } = useConversation(uniqueName);
-    const {account} = useAccount();
+    const {
+        twilioClient,
+        typingStatus,
+        messages,
+        fetchMoreMessages,
+        messagePaginator,
+    } = useContext(AppContext);
 
-    const [messages, setMessages] = useState<Message[]>([]);
+    const { conversation, isLoading, error } = useConversation(uniqueName);
+    const conversationMessages = messages?.get(conversation?.sid || '') || [];
+    const {account} = useAccount();
     const [user, setUser] = useState<User | undefined>(twilioClient?.user);
     const [messageReplyTo, setMessageReplyTo] = useState<Message | null>(
         null
     );
+    const [messagesAuthor, setMessagesAuthor] = useState<Message[]>([]);
+
     const [refreshing, setRefreshing] = useState(false);
-    const [paginator, setPaginator] = useState<Paginator<TwilioMessage> | null>(null);
-    const [hasMore, setHasMore] = useState(
-        false
-    );
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
 
     const navigation = useNavigation();
 
-    async function getConversationMessages() {
-        if (!twilioClient || !conversation) return;
 
-        // Fetch messages using twilioClient and the conversation.
-        let messagesPage = await conversation.getMessages(); // Assuming this method exists
-        if (messagesPage && messagesPage.items) {
-            setAuthorMessages(messagesPage.items);
-            setPaginator(messagesPage);
-            setHasMore(messagesPage.hasPrevPage);
-        }
-    }
-
-
-    const setAuthorMessages = (msgs: TwilioMessage[]) => {
-        (async () => {
-            const msges = await addMessagesAuthors(msgs);
-            setMessages(prev=>[...prev, ...msges]);
-        })();
-    }
     const addMessagesAuthors = async (items: TwilioMessage[]) => {
-        return await Promise.all(items.map(async msg => {
-            const user = await twilioClient?.getUser(msg.author || '')
-            return {msg: msg, author: user?.friendlyName, deleted: false};
+        const messagesWithAuthors = await Promise.all(items.map(async twilioMessage => {
+            const user = await twilioClient?.getUser(twilioMessage.author || '');
+            return { twilioMessage, author: user?.friendlyName, deleted: false };
         }));
-    }
 
-    const getDate = (date: Date): string => {
-        return Moment(date).calendar();
-    }
+        setMessagesAuthor(messagesWithAuthors);
+    };
 
     const onRefresh = async () => {
         setRefreshing(true);
-        if (!paginator || !hasMore) {
-            setRefreshing(false);
-            return;
+        if (fetchMoreMessages) {
+            await fetchMoreMessages(conversation?.sid || '');
         }
-
-        const result = await paginator?.prevPage();
-        if (!result) {
-            return;
-        }
-        const moreMessages = result.items;
-        setPaginator(result);
-        setHasMore(result.hasPrevPage);
-        (async () => {
-            const msges = await addMessagesAuthors(moreMessages);
-            setMessages(prevMsgs => [...msges, ...prevMsgs])
-        })();
-
         setRefreshing(false);
     };
 
-    useEffect(() => {
-
-        if (isLoading) {
-            return;
-        }
-
-
-        console.log('RERUN');
-        if (conversation && !messages.length) {
-            getConversationMessages(); // Fetch messages once conversation is available
-        }
-        return () => {
-        }
-
-    }, [conversation,incominMessages, isLoading, error]);
-
 
     useEffect(() => {
-
-        if (isLoading) {
-            return;
-        }
-
-        const incoming = incominMessages?.get(conversation?.sid || '') || [];
-        setAuthorMessages(incoming);
-        return () => {
-        }
-
-    }, [incominMessages]);
-    useEffect(() => {
-        if (conversation){
+        if (conversation) {
             navigation.setOptions({
                 headerTitle: () => (
                     <HeaderTitle
@@ -135,8 +78,13 @@ const ConversationSrreen = () => {
                 )
             });
         }
-
     }, [typing, conversation, account]);
+
+    useEffect(() => {
+        if (conversationMessages.length > 0) {
+            addMessagesAuthors(conversationMessages);
+        }
+    }, [conversationMessages]);
 
 
     if (isLoading) {
@@ -152,7 +100,7 @@ const ConversationSrreen = () => {
                         onRefresh={onRefresh}
                     />
                 }
-                data={messages}
+                data={messagesAuthor}
                 renderItem={({item, index}) => (
                     <View>
                         <MessageBox
@@ -162,7 +110,7 @@ const ConversationSrreen = () => {
                         />
                     </View>
                 )}
-                keyExtractor={item => item.msg.sid}
+                keyExtractor={item => item.twilioMessage.sid}
             />
             <MessageInput
                 conversation={conversation}

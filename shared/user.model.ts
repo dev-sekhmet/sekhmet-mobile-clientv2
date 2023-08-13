@@ -8,7 +8,7 @@ export interface IUser {
     email?: string;
     activated?: boolean;
     langKey?: string;
-    authorities?: any[];
+    authorities?: string[];
     createdBy?: string;
     createdDate?: Date | null;
     lastModifiedBy?: string;

@@ -8,7 +8,7 @@ import {Badge} from "@rneui/base";
 import SekhmetAvatar from "./SekhmetAvatar";
 import useAccount from "../hooks/useAccount";
 import {router} from "expo-router";
-import {displayConversationName} from "../shared/conversation.utils";
+import {displayConversationName, getLastMessageTime} from "../shared/conversation.utils";
 import {AppContext} from "./AppContext";
 
 
@@ -17,7 +17,7 @@ export default function ChatItem({conversation, lastMessage, unreadMessagesCount
     const {typingStatus} = useContext(AppContext);
 
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
-
+    const lastMessageTime = getLastMessageTime(lastMessage);
     const onPress = async () => {
         router.push({
             pathname: "conversation",
@@ -68,9 +68,9 @@ export default function ChatItem({conversation, lastMessage, unreadMessagesCount
                 </View>
                 <View style={styles.row}>
                     <Text numberOfLines={1} style={styles.text}>
-                        {typing ? `${fullName} écrit ...` : lastMessage}
+                        {typing ? `${fullName} écrit ...` : lastMessage?.body}
                     </Text>
-                    <Text style={styles.text}>{lastMessage}</Text>
+                    <Text style={styles.text}>{lastMessage && lastMessageTime}</Text>
                 </View>
 
             </View>

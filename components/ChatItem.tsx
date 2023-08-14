@@ -121,5 +121,7 @@ const styles = StyleSheet.create({
     },
     text: {
         color: 'grey',
+        fontSize: 14,
+        maxWidth: '70%',
     }
 });

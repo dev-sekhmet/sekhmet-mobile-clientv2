@@ -1,7 +1,4 @@
-import {Client, Conversation, Message, Participant} from "@twilio/conversations";
-import {IUser} from "./user.model";
-import {getUserFullName} from "./user.utils";
-import {TypingParticipant} from "../components/AppContext";
+import {Client, Conversation, Message} from "@twilio/conversations";
 
 export const doesConversationExist = async (twilioClient: Client | undefined, uniqueName: string) => {
     try {
@@ -35,51 +32,61 @@ export const displayConversationName = (accountId:string, conversation: Conversa
         }
     }
     return null;
-};
-
-
-
-export const getLastMessageTime = (lastMessage: Message | undefined) => {
-    if (lastMessage === undefined || lastMessage === null) {
+};export const getLastMessageTime = (lastMessage?: Message) => {
+    if (!lastMessage || !lastMessage.dateCreated) {
         return "";
     }
-    const lastMessageDate: Date| null = lastMessage.dateCreated;
+
+    const lastMessageDate = new Date(lastMessage.dateCreated);
     const today = new Date();
-    const diffInDates = lastMessageDate ? Math.floor(today.getTime() - lastMessageDate.getTime()) : 0;
 
+    const diffInMilliseconds = today.getTime() - lastMessageDate.getTime();
 
-    const dayLength = 1000 * 60 * 60 * 24;
-    const weekLength = dayLength * 7;
-    const yearLength = weekLength * 52;
-    const diffInDays = Math.floor(diffInDates / dayLength);
-    const diffInWeeks = Math.floor(diffInDates / weekLength);
-    const diffInYears = Math.floor(diffInDates / yearLength);
-    if (diffInDays < 0) {
-        return "";
+    const secondLength = 1000;
+    const minuteLength = 60 * secondLength;
+    const hourLength = 60 * minuteLength;
+    const dayLength = 24 * hourLength;
+
+    const diffInMinutes = Math.floor(diffInMilliseconds / minuteLength);
+    const diffInHours = Math.floor(diffInMilliseconds / hourLength);
+    const diffInDays = Math.floor(diffInMilliseconds / dayLength);
+
+    if (diffInMilliseconds < 60 * secondLength) {
+        return "maintenant";
     }
-    if (diffInDays === 0 && lastMessageDate) {
-        const minutesLessThanTen = lastMessageDate.getMinutes() < 10 ? "0" : "";
-        return (
-            lastMessageDate.getHours().toString() +
-            ":" +
-            minutesLessThanTen +
-            lastMessageDate.getMinutes().toString()
-        );
+
+    if (diffInMinutes < 60) {
+        return `il y a ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
     }
+
+    if (diffInHours < 24) {
+        return `il y a ${diffInHours} heure${diffInHours > 1 ? 's' : ''}`;
+    }
+
     if (diffInDays === 1) {
-        return "il y a 1 jour";
+        return `Hier ${new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(lastMessageDate)}`;
     }
+
     if (diffInDays < 7) {
         return `il y a ${diffInDays} jours`;
     }
-    if (diffInDays < 14) {
-        return "Il ya 1 semaine";
+
+    const diffInWeeks = Math.floor(diffInMilliseconds / (dayLength * 7));
+
+    if (diffInWeeks === 1) {
+        return "il y a 1 semaine";
     }
+
     if (diffInWeeks < 52) {
-        return `Il y a ${diffInWeeks} semaines`;
+        return `il y a ${diffInWeeks} semaines`;
     }
-    if (diffInYears < 2) {
+
+    const diffInYears = Math.floor(diffInMilliseconds / (dayLength * 365.25));  // 365.25 to consider leap years
+
+    if (diffInYears === 1) {
         return "il y a 1 an";
     }
-    return `Il ya ${diffInYears} ans`;
+
+    return `il y a ${diffInYears} ans`;
 }
+

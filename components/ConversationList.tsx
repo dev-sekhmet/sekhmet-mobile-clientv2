@@ -1,4 +1,5 @@
 import {Conversation} from "@twilio/conversations";
+import * as React from "react";
 import {useContext, useEffect} from "react";
 import {AppContext} from "./AppContext";
 import SekhmetActivityIndicator from "./SekhmetActivityIndicator";
@@ -6,11 +7,9 @@ import {View} from "./Themed";
 import {Dimensions, FlatList, StyleSheet} from "react-native";
 import ChatItem from "./ChatItem";
 import NewConversation, {ConversationInfo} from "./NewConversation";
-import {CONVERSATION_TYPE} from "../constants/Type";
-import * as React from "react";
 
 
- const   ConversationList = ({conversations, onScroll, loadingConversations, conversationInfo}: {
+const   ConversationList = ({conversations, onScroll, loadingConversations, conversationInfo}: {
     conversations?: Conversation[],
     onScroll: any,
     loadingConversations?: boolean,

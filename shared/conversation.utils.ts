@@ -1,4 +1,5 @@
 import {Client, Conversation, Message} from "@twilio/conversations";
+import Moment from "moment";
 
 export const doesConversationExist = async (twilioClient: Client | undefined, uniqueName: string) => {
     try {
@@ -34,30 +35,43 @@ export const displayConversationName = (accountId:string, conversation: Conversa
     return null;
 };
 
-export const getWhatsAppFormattedDate = (date: Date) => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
+export type DateFormatContext = 'chatItem' | 'conversation' | 'message';
 
-    if (date.toDateString() === today.toDateString()) {
-        return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date);
+export const getWhatsAppFormattedDate = (date: Date, context: DateFormatContext): string => {
+    const today = Moment();
+    const yesterday = Moment().subtract(1, 'day');
+
+    if (context === 'message') {
+        return Moment(date).format('HH:mm');
     }
 
-    if (date.toDateString() === yesterday.toDateString()) {
+    if (context === 'conversation') {
+        if (Moment(date).isSame(today, 'day')) {
+            return 'Aujourd’hui';  // French for "Today"
+        } else if (Moment(date).isSame(yesterday, 'day')) {
+            return 'Hier';  // French for "Yesterday"
+        } else {
+            return Moment(date).format('dddd, DD MMMM YYYY');
+        }
+    }
+
+    if (Moment(date).isSame(today, 'day')) {
+        return Moment(date).format('HH:mm');
+    }
+
+    if (Moment(date).isSame(yesterday, 'day')) {
         return "Hier";
     }
 
-    const oneWeekAgo = new Date(today);
-    oneWeekAgo.setDate(today.getDate() - 7);
+    const oneWeekAgo = today.clone().subtract(7, 'days');
 
-    if (date > oneWeekAgo) {
-        return new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(date);
+    if (Moment(date).isAfter(oneWeekAgo)) {
+        return Moment(date).format('dddd');
     }
 
-    if (date.getFullYear() === today.getFullYear()) {
-        return new Intl.DateTimeFormat('fr-FR', { month: 'long', day: '2-digit' }).format(date);
+    if (Moment(date).year() === today.year()) {
+        return Moment(date).format('DD MMMM');
     }
 
-    return new Intl.DateTimeFormat('fr-FR', { year: 'numeric', month: 'long', day: '2-digit' }).format(date);
+    return Moment(date).format('DD MMMM YYYY');
 };
-

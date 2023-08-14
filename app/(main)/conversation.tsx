@@ -5,13 +5,14 @@ import React, {useContext, useEffect, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
 import SekhmetActivityIndicator from "../../components/SekhmetActivityIndicator";
-import {displayConversationName} from "../../shared/conversation.utils";
+import {displayConversationName, getWhatsAppFormattedDate} from "../../shared/conversation.utils";
 import {Message as TwilioMessage, User} from "@twilio/conversations";
 import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
 import {Message} from "../../constants/Type";
 import MessageBox from "../../components/MessageBox";
 import MessageInput from "../../components/MessageInput";
+import Moment from "moment/moment";
 
 
 function HeaderTitle({ title, typing }:{ title:string, typing :boolean}) {
@@ -85,6 +86,13 @@ const ConversationSrreen = () => {
         }
     }, [conversationMessages]);
 
+    const needsDateDivider = (index: number, messages: Message[]): boolean => {
+        if (index === 0) return true;
+        const currentDate = Moment(messages[index].twilioMessage.dateUpdated || undefined);
+        const previousDate = Moment(messages[index - 1].twilioMessage.dateUpdated || undefined);
+        return !currentDate.isSame(previousDate, 'day');
+    }
+
 
     if (isLoading) {
         return <SekhmetActivityIndicator/>;
@@ -102,6 +110,13 @@ const ConversationSrreen = () => {
                 data={messagesAuthor}
                 renderItem={({item, index}) => (
                     <View>
+                        {needsDateDivider(index, messagesAuthor) &&
+                            <View style={styles.dateDividerContainer}>
+                                <Text style={styles.dateDividerText}>
+                                    {item.twilioMessage && item.twilioMessage?.dateUpdated ? getWhatsAppFormattedDate(new Date(item.twilioMessage.dateUpdated || undefined), 'conversation') : ''}
+                                </Text>
+                            </View>
+                        }
                         <MessageBox
                             message={item}
                             authUser={twilioClient?.user}
@@ -127,6 +142,19 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: "white",
         flex: 1,
+    },
+    dateDividerContainer: {
+        backgroundColor: '#ebebeb',
+        borderRadius: 12,
+        marginVertical: 8,
+        alignSelf: 'center',
+    },
+    dateDividerText: {
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 12,
+        padding: 8,
+        color: 'gray',
     },
     titleText: {
         fontWeight: 'bold',

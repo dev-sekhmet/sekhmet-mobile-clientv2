@@ -1,26 +1,16 @@
 import React, {useEffect, useState} from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    Pressable,
-    StyleSheet,
-    useWindowDimensions,
-} from 'react-native';
-import {FontAwesome, FontAwesome5, Ionicons} from '@expo/vector-icons';
+import {ActivityIndicator, Alert, Dimensions, FlatList, Pressable, StyleSheet,} from 'react-native';
+import {FontAwesome5} from '@expo/vector-icons';
 import {useActionSheet} from '@expo/react-native-action-sheet';
 import AudioPlayer from './media/AudioPlayer';
 import MessageReply from './MessageReply';
 import {Text, View} from "./Themed";
-import Moment from 'moment';
-import {Media, User} from "@twilio/conversations";
+import {User} from "@twilio/conversations";
 import {forkJoin, from, map,} from "rxjs";
 import VideoPlayer from "./media/VideoPlayer";
 import ImageView from "./media/ImageView";
 import Colors from "../constants/Colors";
-import {APP_TIME_FORMAT, Message} from "../constants/Type";
+import {Message} from "../constants/Type";
 import {getWhatsAppFormattedDate} from "../shared/conversation.utils";
 
 const grey = '#F2F2F2';
@@ -203,15 +193,17 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                     )}
                     {!!twilioMessage.body && (
                         <View>
-                            {message.deleted && <View style={{flexDirection: "row",
-                                alignItems:'center',
-                                backgroundColor: isMe ? blue : grey}}>
-                                <FontAwesome5 size={10} name="ban"/>
-                                <Text style={{fontStyle: 'italic', marginLeft:3}}>
+                            {message.deleted &&
+                                <View style={[
+                                    styles.deletedMessage,
+                                    {backgroundColor: isMe ? blue : grey}
+                                ]}>
+                                    <FontAwesome5 size={10} name="ban" color='white'/>
+                                    <Text style={styles.deletedMessageText}>
                                     ce message a été supprimé
                                 </Text>
                             </View>}
-                            {!message.deleted && <Text style={{backgroundColor: isMe ? blue : grey}}>
+                            {!message.deleted && <Text style={{fontSize: 16, backgroundColor: isMe ? blue : grey}}>
                                 {twilioMessage.body}
                             </Text>}
                         </View>)
@@ -221,24 +213,16 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             <Text style={[
                 isMe ? styles.rightHour : styles.leftHour,
                 {width: soundURI ? "75%" : "auto"},
-            ]}>{twilioMessage && twilioMessage?.dateUpdated? getWhatsAppFormattedDate(new Date(twilioMessage.dateUpdated || undefined)): ''}</Text>
+            ]}>{twilioMessage && twilioMessage?.dateUpdated ? getWhatsAppFormattedDate(new Date(twilioMessage.dateUpdated || undefined), 'message') : ''}</Text>
         </Pressable>
     );
 };
-
 const styles = StyleSheet.create({
     container: {
-        padding: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
         marginTop: 10,
-        marginLeft: 10,
-        marginRight: 10,
-        borderRadius: 20,
-
-        maxWidth: "75%",
-    }, containerHour: {
-        padding: 10,
-        margin: 10,
-        borderRadius: 10,
+        borderRadius: 12,
         maxWidth: "75%",
     },
     row: {
@@ -249,6 +233,7 @@ const styles = StyleSheet.create({
         backgroundColor: "gray",
         padding: 5,
         borderRadius: 5,
+        marginBottom: 5,
     },
     leftContainer: {
         backgroundColor: grey,
@@ -256,26 +241,46 @@ const styles = StyleSheet.create({
         marginRight: "auto",
     },
     leftHour: {
-        marginLeft: 10,
+        fontSize: 12,
+        marginLeft: 15,
         color: '#8C8C8C',
         marginRight: "auto",
+        marginTop: 5,
     },
     rightContainer: {
         backgroundColor: blue,
         marginLeft: "auto",
         marginRight: 10,
-        alignItems: "flex-end",
     },
     rightHour: {
+        fontSize: 12,
         marginLeft: "auto",
-        marginRight: 10,
+        marginRight: 15,
         color: '#8C8C8C',
-        alignItems: "flex-end",
+        marginTop: 5,
     },
     author: {
         color: Colors.light.sekhmetOrange,
         fontWeight: "bold",
-    }
+        marginBottom: 5,
+    },
+    textMessage: {
+        fontSize: 16,
+        color: 'white',
+    },
+    deletedMessage: {
+        flexDirection: "row",
+        alignItems: 'center',
+        padding: 5,
+        borderRadius: 12,
+    },
+    deletedMessageText: {
+        fontStyle: 'italic',
+        marginLeft: 5,
+        fontSize: 15,
+        color: 'white',
+    },
 });
+
 
 export default MessageBox;

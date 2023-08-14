@@ -17,7 +17,7 @@ export default function ChatItem({conversation, lastMessage, unreadMessagesCount
     const {typingStatus} = useContext(AppContext);
 
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
-    const lastMessageDate = lastMessage && lastMessage.dateCreated ? getWhatsAppFormattedDate(new Date(lastMessage.dateCreated)) : "";
+    const lastMessageDate = lastMessage && lastMessage.dateCreated ? getWhatsAppFormattedDate(new Date(lastMessage.dateCreated), "chatItem") : "";
 
     const onPress = async () => {
         router.push({

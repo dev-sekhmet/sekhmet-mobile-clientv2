@@ -20,7 +20,7 @@ const MessageInput = ({
                           removeMessageReplyTo
                       }: { conversation: Conversation | null, messageReplyTo: Message| null, removeMessageReplyTo: () => void }) => {
 
-    const [message, setMessage] = useState("");
+    const [inputMessageText, setInputMessageText] = useState("");
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [image, setImage] = useState<string | null>(null);
     const [progress, setProgress] = useState(0);
@@ -71,10 +71,10 @@ const MessageInput = ({
 
 
     const sendMessage = async () => {
-        if (!conversation || !message) return;
+        if (!conversation || !inputMessageText.trim()) return;
 
         try {
-            return await conversation.sendMessage(message);
+            return await conversation.sendMessage(inputMessageText.trim());
         } catch (error) {
             console.error("Failed to send message:", error);
             // Optionally, notify the user about the error
@@ -99,7 +99,7 @@ const MessageInput = ({
     };
 
     const resetFields = () => {
-        setMessage("");
+        setInputMessageText("");
         setIsEmojiPickerOpen(false);
         setImage(null);
         setProgress(0);
@@ -306,9 +306,9 @@ const MessageInput = ({
 
                     <TextInput
                         style={styles.input}
-                        value={message}
+                        value={inputMessageText}
                         onChangeText={(text) => {
-                            setMessage(text);
+                            setInputMessageText(text);
                             startTyping();
                         }}
                         placeholder="Votre message..."
@@ -343,7 +343,7 @@ const MessageInput = ({
                 </View>
 
                 <Pressable onPress={onPress} style={styles.buttonContainer}>
-                    {message || image || videoURI || soundURI ? (
+                    {inputMessageText.trim() || image || videoURI || soundURI ? (
                         <Ionicons name="send" size={18} color={"white"}/>
                     ) : (
                         <AntDesign name="plus" size={24} color="white"/>
@@ -354,7 +354,7 @@ const MessageInput = ({
             {isEmojiPickerOpen && (
                 <EmojiSelector
                     onEmojiSelected={(emoji) =>
-                        setMessage((currentMessage) => currentMessage + emoji)
+                        setInputMessageText((currentMessage) => currentMessage + emoji)
                     }
                     columns={8}
                 />

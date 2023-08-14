@@ -155,7 +155,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                     {message.author}
                 </Text>}
                 {repliedTo && <MessageReply message={repliedTo}/>}
-                <View style={styles.row}>
+                <View>
                     {twilioMessage.type === 'media' && twilioMessage.attachedMedia && (
                         <FlatList
                             data={mediaContents}
@@ -203,9 +203,11 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                                     ce message a été supprimé
                                 </Text>
                             </View>}
-                            {!message.deleted && <Text style={{fontSize: 16, backgroundColor: isMe ? blue : grey}}>
-                                {twilioMessage.body}
-                            </Text>}
+                            {!message.deleted &&
+                                <View style={{backgroundColor: isMe ? blue : grey}}>
+                                    <Text style={{fontSize: 16}}>
+                                        {twilioMessage.body}
+                                    </Text></View>}
                         </View>)
                     }
                 </View>
@@ -224,10 +226,6 @@ const styles = StyleSheet.create({
         marginTop: 10,
         borderRadius: 12,
         maxWidth: "75%",
-    },
-    row: {
-        flexDirection: "row",
-        alignItems: "flex-end",
     },
     messageReply: {
         backgroundColor: "gray",

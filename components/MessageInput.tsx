@@ -342,7 +342,10 @@ const MessageInput = ({
                     </Pressable>
                 </View>
 
-                <Pressable onPress={onPress} style={styles.buttonContainer}>
+                <Pressable onPress={onPress} style={({ pressed }) => [
+                    styles.buttonContainer,
+                    { opacity: pressed ? 0.7 : 1 }
+                ]}>
                     {inputMessageText.trim() || image || videoURI || soundURI ? (
                         <Ionicons name="send" size={18} color={"white"}/>
                     ) : (

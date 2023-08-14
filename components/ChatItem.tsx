@@ -10,6 +10,7 @@ import useAccount from "../hooks/useAccount";
 import {router} from "expo-router";
 import {displayConversationName, getWhatsAppFormattedDate} from "../shared/conversation.utils";
 import {AppContext} from "./AppContext";
+import {truncateText} from "../shared/global.utils";
 
 
 export default function ChatItem({conversation, lastMessage, unreadMessagesCount}: TwilioProps) {
@@ -32,7 +33,7 @@ export default function ChatItem({conversation, lastMessage, unreadMessagesCount
     return (
         <Pressable onPress={onPress} style={styles.container}>
             <SekhmetAvatar
-                size={80}
+                size={60}
                 imageUrl="https://randomuser.me/api/portraits/men/36.jpg"
                 icon={{
                     name: 'camera-alt',
@@ -69,7 +70,7 @@ export default function ChatItem({conversation, lastMessage, unreadMessagesCount
                 </View>
                 <View style={styles.row}>
                     <Text numberOfLines={1} style={styles.text}>
-                        {typing ? `${fullName} écrit ...` : lastMessage?.body}
+                        {typing ? `${fullName} écrit ...` : truncateText(lastMessage?.body || '', 40)}
                     </Text>
                     <Text style={styles.text}>{lastMessage && lastMessageDate}</Text>
                 </View>

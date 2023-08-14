@@ -5,7 +5,11 @@ import {CONVERSATION_TYPE} from "../constants/Type";
 import {router} from "expo-router";
 import {FAB} from "@rneui/base";
 
-export type NewConversationParam = { conversationInfo: { label: string, type: CONVERSATION_TYPE } };
+export type ConversationInfo = {
+    label: string,
+    type: CONVERSATION_TYPE
+};
+export type NewConversationParam = { conversationInfo: ConversationInfo };
 const NewConversation = ({conversationInfo}: NewConversationParam) => {
     const createNewConversation = () => {
         router.push({

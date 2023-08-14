@@ -1,16 +1,15 @@
-import {Dimensions, FlatList, StyleSheet} from 'react-native';
+import {Dimensions, StyleSheet} from 'react-native';
 import {createMaterialTopTabNavigator} from '@react-navigation/material-top-tabs';
 import * as React from "react";
 import {useContext, useEffect, useState} from "react";
-import {Conversation, Message} from "@twilio/conversations";
+import {Conversation} from "@twilio/conversations";
 import Colors from "../../../../constants/Colors";
 import {Text, View} from "../../../../components/Themed";
 import {Badge} from "@rneui/base";
 import SekhmetActivityIndicator from "../../../../components/SekhmetActivityIndicator";
 import {CONVERSATION_TYPE} from "../../../../constants/Type";
-import ChatItem from "../../../../components/ChatItem";
-import NewConversation from "../../../../components/NewConversation";
 import {AppContext} from "../../../../components/AppContext";
+import ConversationList from "../../../../components/ConversationList";
 
 const height = Dimensions.get('screen').height;
 
@@ -71,10 +70,11 @@ export default function MessagesScreen() {
                         </View>;
                       }
                     }}
-                    children={() => <Discussion
+                    children={() => <ConversationList
                         onScroll={fetchMoreConversations}
                         loadingConversations={loadingConversations}
-                        conversations={dualConversations}/>}/>
+                        conversations={dualConversations}
+                        conversationInfo={{label: "Nouvelle discussion", type: CONVERSATION_TYPE.DUAL}}/>}/>
         <Tab.Screen name="Groupes"
                     options={{
                       tabBarLabel: () => {
@@ -88,102 +88,16 @@ export default function MessagesScreen() {
                         </View>
                       }
                     }}
-                    children={() => <Groupes
+                    children={() => <ConversationList
                         onScroll={fetchMoreConversations}
                         loadingConversations={loadingConversations}
-                        conversations={groupConversations}/>}/>
+                        conversations={groupConversations}
+                        conversationInfo={{label: "Nouveau Groupe", type: CONVERSATION_TYPE.GROUP}}/>}/>
 
       </Tab.Navigator>
 
   );
 }
-
-
-const Discussion = ({conversations, onScroll, loadingConversations}: {
-    conversations?: Conversation[],
-    onScroll: any,
-    loadingConversations?: boolean
-}) => {
-    const context = useContext(AppContext);
-
-    if (!context) {
-        return <SekhmetActivityIndicator/>
-    }
-    const {
-        messages,
-    } = context;
-
-    const getLastMessage = (conversationSid: string) => {
-        const conversationMessages = messages?.get(conversationSid);
-        if (conversationMessages && conversationMessages.length > 0) {
-            return conversationMessages[conversationMessages.length-1];
-        }
-        return undefined;
-    }
-    return <View style={styles.container}>
-        <FlatList
-            data={conversations}
-            renderItem={({item}) => {
-                const unreadMessagesCount = 2;
-                const lastMessage = getLastMessage(item.sid);
-                return (
-                    <ChatItem
-                        key={item.sid}
-                        conversation={item}
-                        lastMessage={lastMessage}
-                        unreadMessagesCount={unreadMessagesCount}/>
-                );
-            }}
-            onEndReached={onScroll}
-            onEndReachedThreshold={0.2}
-            keyExtractor={item => item.sid}
-        />
-        <NewConversation conversationInfo={{label: "Nouvelle discussion", type: CONVERSATION_TYPE.DUAL}}/>
-    </View>
-}
-
-const Groupes = ({conversations, onScroll, loadingConversations}: {
-    conversations?: Conversation[],
-    onScroll: any,
-    loadingConversations?: boolean
-}) => {
-    const context = useContext(AppContext);
-
-    if (!context) {
-        return <SekhmetActivityIndicator/>
-    }
-    const {
-        messages,
-    } = context;
-
-    const getLastMessage = (conversationSid: string) => {
-        const conversationMessages = messages?.get(conversationSid);
-        if (conversationMessages && conversationMessages.length > 0) {
-            return conversationMessages[0];
-        }
-        return undefined;
-    }
-
-    return <View style={styles.container}>
-        <FlatList
-            data={conversations}
-            renderItem={({item}) => {
-                const unreadMessagesCount = 3
-                const lastMessage = getLastMessage(item.sid);
-                return (
-                    <ChatItem conversation={item}
-                              lastMessage={lastMessage}
-                              unreadMessagesCount={unreadMessagesCount}/>
-                );
-            }}
-            onEndReached={onScroll}
-            onEndReachedThreshold={0.2}
-            keyExtractor={item => item.sid}
-        />
-        <NewConversation conversationInfo={{label: "Nouveau Groupe", type: CONVERSATION_TYPE.GROUP}}/>
-    </View>
-}
-
 
 const styles = StyleSheet.create({
   container: {

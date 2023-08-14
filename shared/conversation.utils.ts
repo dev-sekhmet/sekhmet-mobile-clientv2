@@ -32,61 +32,32 @@ export const displayConversationName = (accountId:string, conversation: Conversa
         }
     }
     return null;
-};export const getLastMessageTime = (lastMessage?: Message) => {
-    if (!lastMessage || !lastMessage.dateCreated) {
-        return "";
-    }
+};
 
-    const lastMessageDate = new Date(lastMessage.dateCreated);
+export const getWhatsAppFormattedDate = (date: Date) => {
     const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
 
-    const diffInMilliseconds = today.getTime() - lastMessageDate.getTime();
-
-    const secondLength = 1000;
-    const minuteLength = 60 * secondLength;
-    const hourLength = 60 * minuteLength;
-    const dayLength = 24 * hourLength;
-
-    const diffInMinutes = Math.floor(diffInMilliseconds / minuteLength);
-    const diffInHours = Math.floor(diffInMilliseconds / hourLength);
-    const diffInDays = Math.floor(diffInMilliseconds / dayLength);
-
-    if (diffInMilliseconds < 60 * secondLength) {
-        return "maintenant";
+    if (date.toDateString() === today.toDateString()) {
+        return new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(date);
     }
 
-    if (diffInMinutes < 60) {
-        return `il y a ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
+    if (date.toDateString() === yesterday.toDateString()) {
+        return "Hier";
     }
 
-    if (diffInHours < 24) {
-        return `il y a ${diffInHours} heure${diffInHours > 1 ? 's' : ''}`;
+    const oneWeekAgo = new Date(today);
+    oneWeekAgo.setDate(today.getDate() - 7);
+
+    if (date > oneWeekAgo) {
+        return new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(date);
     }
 
-    if (diffInDays === 1) {
-        return `Hier ${new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(lastMessageDate)}`;
+    if (date.getFullYear() === today.getFullYear()) {
+        return new Intl.DateTimeFormat('fr-FR', { month: 'long', day: '2-digit' }).format(date);
     }
 
-    if (diffInDays < 7) {
-        return `il y a ${diffInDays} jours`;
-    }
-
-    const diffInWeeks = Math.floor(diffInMilliseconds / (dayLength * 7));
-
-    if (diffInWeeks === 1) {
-        return "il y a 1 semaine";
-    }
-
-    if (diffInWeeks < 52) {
-        return `il y a ${diffInWeeks} semaines`;
-    }
-
-    const diffInYears = Math.floor(diffInMilliseconds / (dayLength * 365.25));  // 365.25 to consider leap years
-
-    if (diffInYears === 1) {
-        return "il y a 1 an";
-    }
-
-    return `il y a ${diffInYears} ans`;
-}
+    return new Intl.DateTimeFormat('fr-FR', { year: 'numeric', month: 'long', day: '2-digit' }).format(date);
+};
 

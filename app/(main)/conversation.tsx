@@ -1,15 +1,14 @@
 import {FlatList, RefreshControl, SafeAreaView, StyleSheet} from 'react-native';
-import {View, Text} from '../../components/Themed';
-import {Stack, useLocalSearchParams,useNavigation} from "expo-router";
+import {Text, View} from '../../components/Themed';
+import {useLocalSearchParams, useNavigation} from "expo-router";
 import React, {useContext, useEffect, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
 import SekhmetActivityIndicator from "../../components/SekhmetActivityIndicator";
 import {displayConversationName} from "../../shared/conversation.utils";
-import {Conversation, Message as TwilioMessage, Paginator, User} from "@twilio/conversations";
+import {Message as TwilioMessage, User} from "@twilio/conversations";
 import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
-import Moment from "moment";
 import {Message} from "../../constants/Type";
 import MessageBox from "../../components/MessageBox";
 import MessageInput from "../../components/MessageInput";

@@ -21,6 +21,7 @@ import VideoPlayer from "./media/VideoPlayer";
 import ImageView from "./media/ImageView";
 import Colors from "../constants/Colors";
 import {APP_TIME_FORMAT, Message} from "../constants/Type";
+import {getWhatsAppFormattedDate} from "../shared/conversation.utils";
 
 const grey = '#F2F2F2';
 const blue = '#ECF3FE';
@@ -50,10 +51,10 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
         setAsRead();
     }, [isMe, message]);
 
-    const msg = message.twilioMessage;
+    const twilioMessage = message.twilioMessage;
     useEffect(() => {
-        if (msg.attachedMedia) {
-            forkJoin(msg.attachedMedia.map(value => {
+        if (twilioMessage.attachedMedia) {
+            forkJoin(twilioMessage.attachedMedia.map(value => {
                 return from<Promise<string | null>>(value.getContentTemporaryUrl())
                     .pipe(map(url => {
                         const res: MediaData = {sid:value.sid, type: 'file', url}
@@ -79,7 +80,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             setIsMe(message.twilioMessage.author === authUser?.identity);
         };
         checkIfMe();
-        if (!msg?.body) {
+        if (!twilioMessage?.body) {
             return;
         }
 
@@ -88,13 +89,6 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
 
     const setAsRead = async () => {
         if (isMe === false && message) {
-            // if (isMe === false && message.read) {
-
-            /*            await DataStore.save(
-                            MessageModel.copyOf(message, (updated) => {
-                                updated.status = "READ";
-                            })
-                        );*/
         }
     };
 
@@ -172,11 +166,11 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                 </Text>}
                 {repliedTo && <MessageReply message={repliedTo}/>}
                 <View style={styles.row}>
-                    {msg.type === 'media' && msg.attachedMedia && (
+                    {twilioMessage.type === 'media' && twilioMessage.attachedMedia && (
                         <FlatList
                             data={mediaContents}
                             renderItem={({item, index}) => (
-                                <View style={{marginBottom: msg.body ? 10 : 0}}>
+                                <View style={{marginBottom: twilioMessage.body ? 10 : 0}}>
                                     {item.type === 'image' ? <ImageView
                                             uri={item.url || ''}
                                             style={{
@@ -207,7 +201,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                         />
 
                     )}
-                    {!!msg.body && (
+                    {!!twilioMessage.body && (
                         <View>
                             {message.deleted && <View style={{flexDirection: "row",
                                 alignItems:'center',
@@ -218,7 +212,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                                 </Text>
                             </View>}
                             {!message.deleted && <Text style={{backgroundColor: isMe ? blue : grey}}>
-                                {msg.body}
+                                {twilioMessage.body}
                             </Text>}
                         </View>)
                     }
@@ -227,7 +221,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             <Text style={[
                 isMe ? styles.rightHour : styles.leftHour,
                 {width: soundURI ? "75%" : "auto"},
-            ]}>{Moment(msg.dateUpdated).format(APP_TIME_FORMAT)}</Text>
+            ]}>{twilioMessage && twilioMessage?.dateUpdated? getWhatsAppFormattedDate(new Date(twilioMessage.dateUpdated || undefined)): ''}</Text>
         </Pressable>
     );
 };

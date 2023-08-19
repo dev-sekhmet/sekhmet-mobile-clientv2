@@ -122,21 +122,27 @@ export default function TabLayout() {
         setTypingStatus(updatedStatus);
     };
     const setMessage = (message: Message) => {
-        const updatedMessages = new Map(messages);
-        let conversationMessages = updatedMessages.get(message.conversation.sid) || [];
-        conversationMessages = [...conversationMessages, message];
-        updatedMessages.set(message.conversation.sid, conversationMessages);
-        setMessages(updatedMessages);
+        setMessages(prevMessages => {
+            const updatedMessages = new Map(prevMessages);
+            let conversationMessages = updatedMessages.get(message.conversation.sid) || [];
+            conversationMessages = [...conversationMessages, message];
+            updatedMessages.set(message.conversation.sid, conversationMessages);
+            return updatedMessages;
+        });
     };
 
     const unSetMessage = (message: Message) => {
-        const updatedMessages = new Map(messages);
-        const conversationMessages = updatedMessages.get(message.conversation.sid)?.filter(m => m.sid !== message.sid);
-        if (conversationMessages) {
-            updatedMessages.set(message.conversation.sid, conversationMessages);
-            setMessages(updatedMessages);
-        }
+        setMessages(prevMessages => {
+            const updatedMessages = new Map(prevMessages);
+            const conversationMessages = updatedMessages.get(message.conversation.sid)?.filter(m => m.sid !== message.sid);
+
+            if (conversationMessages) {
+                updatedMessages.set(message.conversation.sid, conversationMessages);
+            }
+            return updatedMessages;
+        });
     };
+
 
     const doesConversationExists = (conversation: Conversation) => {
         return conversations.some(existingConversation => existingConversation.sid === conversation.sid);
@@ -207,8 +213,6 @@ export default function TabLayout() {
     }
 
     const isLoadind = authLoading || tokenLoading;
-
-
 
     useEffect(() => {
         if (isLoadind) {

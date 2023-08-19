@@ -119,6 +119,7 @@ const ConversationSrreen = () => {
                         }
                         <MessageBox
                             message={item}
+                            key={item.twilioMessage.sid}
                             authUser={twilioClient?.user}
                             setAsMessageReply={() => setMessageReplyTo(item)}
                         />

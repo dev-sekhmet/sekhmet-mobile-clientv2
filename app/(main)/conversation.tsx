@@ -1,7 +1,7 @@
 import {FlatList, RefreshControl, SafeAreaView, StyleSheet} from 'react-native';
 import {Text, View} from '../../components/Themed';
 import {useLocalSearchParams, useNavigation} from "expo-router";
-import React, {useContext, useEffect, useState} from "react";
+import React, {useContext, useEffect, useRef, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
 import SekhmetActivityIndicator from "../../components/SekhmetActivityIndicator";
@@ -47,6 +47,8 @@ const ConversationSrreen = () => {
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
 
     const navigation = useNavigation();
+    const flatListRef = useRef<FlatList>(null);
+
 
 
     const addMessagesAuthors = async (items: TwilioMessage[]) => {
@@ -107,6 +109,9 @@ const ConversationSrreen = () => {
                         onRefresh={onRefresh}
                     />
                 }
+                ref={flatListRef}
+                onContentSizeChange={() => flatListRef.current?.scrollToEnd({animated: true})}
+
                 data={messagesAuthor}
                 renderItem={({item, index}) => (
                     <View>

@@ -125,7 +125,9 @@ export default function TabLayout() {
         setMessages(prevMessages => {
             const updatedMessages = new Map(prevMessages);
             let conversationMessages = updatedMessages.get(message.conversation.sid) || [];
-            conversationMessages = [...conversationMessages, message];
+            if (!conversationMessages.some(existingMessage => existingMessage.sid === message.sid)) {
+                conversationMessages = [...conversationMessages, message];
+            }
             updatedMessages.set(message.conversation.sid, conversationMessages);
             return updatedMessages;
         });
@@ -153,7 +155,6 @@ export default function TabLayout() {
             const client = new Client(token)
                 .on('initialized', () => {
                     console.log('initialized OK');
-
                     setTwilioClient(client);
                     fetchConversations(client);
                 })

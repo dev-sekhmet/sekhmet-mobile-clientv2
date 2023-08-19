@@ -25,7 +25,7 @@ export default function CreateConversation() {
     const [searchValue, setSearchValue] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [selectedUsers, setSelectedUsers] = useState<IUser[]>([]);
-    const {account} = useAccount();
+    const {account, isAdmin, isCoach} = useAccount();
 
     const {screenTitle, conversationType} = useLocalSearchParams<any>();
     const {users, loading, error} = useUsers(searchValue);
@@ -136,7 +136,7 @@ export default function CreateConversation() {
     if (users) {
         usersWithoutMe = users.filter(user => user.id !== account?.id);
     }
-    const canCreateGroup = true; //isAdmin && route.params.conversationInfo.type === CONVERSATION_TYPE.GROUP;
+    const canCreateGroup = (isAdmin || isCoach) && conversationType === CONVERSATION_TYPE.GROUP;
 
     if (loading && !isSearching) {
         return <SekhmetActivityIndicator/>

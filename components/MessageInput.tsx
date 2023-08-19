@@ -306,6 +306,7 @@ const MessageInput = ({
 
                     <TextInput
                         style={styles.input}
+                        multiline={true}
                         value={inputMessageText}
                         onChangeText={(text) => {
                             setInputMessageText(text);
@@ -386,6 +387,7 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+        maxHeight: 100,
         marginHorizontal: 5,
     },
     icon: {

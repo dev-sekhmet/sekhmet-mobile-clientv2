@@ -77,17 +77,23 @@ export default function TabLayout() {
 
     const fetchMoreMessages = async (conversationSid: string) => {
         const currentPaginator = messagePaginator.get(conversationSid);
-        if (currentPaginator && currentPaginator.hasNextPage) {
+        if (currentPaginator && currentPaginator.hasPrevPage) {
             try {
-                const newPaginator = await currentPaginator.nextPage();
+                const newPaginator = await currentPaginator.prevPage();
                 setMessagePaginator(prev => {
                     const updatedPaginator = new Map(prev);
                     updatedPaginator.set(conversationSid, newPaginator);
                     return updatedPaginator;
                 });
+
                 setMessages(prev => {
+                    const existingMessages = prev.get(conversationSid) || [];
+                    const newMessages = newPaginator.items.filter(
+                        item => !existingMessages.some(existing => existing.sid === item.sid)
+                    );
+                    const allMessages = [...newMessages, ...existingMessages];
+
                     const updatedMessages = new Map(prev);
-                    const allMessages = [...newPaginator.items, ...(prev.get(conversationSid) || [])];
                     updatedMessages.set(conversationSid, allMessages);
                     return updatedMessages;
                 });

@@ -1,5 +1,5 @@
 import {ImageRequireSource, ImageSourcePropType} from 'react-native';
-import {Client, Conversation, Message as TwilioMessage} from "@twilio/conversations";
+import {Client, Conversation, Message as TwilioMessage, User} from "@twilio/conversations";
 
 export enum Status_Types_Enum {
   Online,
@@ -31,5 +31,5 @@ export enum TWILIO_ROLE {
   CHANNEL_ADMIN = 'CHANNEL_ADMIN'
 }
 
-export type Message = { twilioMessage: TwilioMessage, author: string | undefined | null, deleted?: boolean };
+export type Message = { twilioMessage: TwilioMessage, author: User | undefined | null, deleted?: boolean };
 export const APP_TIME_FORMAT = 'HH:mm';

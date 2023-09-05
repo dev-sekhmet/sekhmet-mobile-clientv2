@@ -1,18 +1,18 @@
-import {FlatList, RefreshControl, SafeAreaView, StyleSheet} from 'react-native';
+import {FlatList, SafeAreaView, StyleSheet} from 'react-native';
 import {Text, View} from '../../components/Themed';
 import {useLocalSearchParams, useNavigation} from "expo-router";
 import React, {useContext, useEffect, useRef, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
 import SekhmetActivityIndicator from "../../components/SekhmetActivityIndicator";
-import {displayConversationName, getWhatsAppFormattedDate} from "../../shared/conversation.utils";
+import {displayConversationName} from "../../shared/conversation.utils";
 import {Message as TwilioMessage, User} from "@twilio/conversations";
 import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
 import {Message} from "../../constants/Type";
-import MessageBox from "../../components/MessageBox";
-import MessageInput from "../../components/MessageInput";
 import Moment from "moment/moment";
+import {GiftedChat, IMessage} from "react-native-gifted-chat";
+import 'dayjs/locale/fr'
 
 
 function HeaderTitle({ title, typing }:{ title:string, typing :boolean}) {
@@ -54,7 +54,7 @@ const ConversationSrreen = () => {
     const addMessagesAuthors = async (items: TwilioMessage[]) => {
         const messagesWithAuthors = await Promise.all(items.map(async twilioMessage => {
             const user = await twilioClient?.getUser(twilioMessage.author || '');
-            return { twilioMessage, author: user?.friendlyName, deleted: false };
+            return { twilioMessage, author: user, deleted: false };
         }));
 
         setMessagesAuthor(messagesWithAuthors);
@@ -100,42 +100,36 @@ const ConversationSrreen = () => {
         return <SekhmetActivityIndicator/>;
     }
 
+    const onSend = (messages: IMessage[]) => {
+
+    }
+
     return (
         <SafeAreaView style={styles.container}>
-            <FlatList
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                    />
-                }
-                ref={flatListRef}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd({animated: true})}
-
-                data={messagesAuthor}
-                renderItem={({item, index}) => (
-                    <View>
-                        {needsDateDivider(index, messagesAuthor) &&
-                            <View style={styles.dateDividerContainer}>
-                                <Text style={styles.dateDividerText}>
-                                    {item.twilioMessage && item.twilioMessage?.dateUpdated ? getWhatsAppFormattedDate(new Date(item.twilioMessage.dateUpdated || undefined), 'conversation') : ''}
-                                </Text>
-                            </View>
-                        }
-                        <MessageBox
-                            message={item}
-                            key={item.twilioMessage.sid}
-                            authUser={twilioClient?.user}
-                            setAsMessageReply={() => setMessageReplyTo(item)}
-                        />
-                    </View>
-                )}
-                keyExtractor={item => item.twilioMessage.sid}
-            />
-            <MessageInput
-                conversation={conversation}
-                messageReplyTo={messageReplyTo}
-                removeMessageReplyTo={() => setMessageReplyTo(null)}
+            <GiftedChat
+                messages={messagesAuthor.map(mgs => {
+                    return {
+                        _id: mgs.twilioMessage.sid,
+                        text: mgs.twilioMessage.body || '',
+                        createdAt: mgs.twilioMessage.dateCreated || 1,
+                        user: {
+                            _id: mgs.author?.identity || '',
+                            name: mgs.author?.friendlyName  || '',
+                            avatar: 'https://placeimg.com/140/140/any',
+                        },
+                    }
+                })}
+                infiniteScroll={true}
+                onLoadEarlier={()=>onRefresh()}
+                loadEarlier={true}
+                locale='fr'
+                renderLoading={()=><SekhmetActivityIndicator/>}
+                inverted={false}
+                onSend={messages => onSend(messages)}
+                user={{
+                    _id: account?.id,
+                    ...account
+                }}
             />
         </SafeAreaView>
     );

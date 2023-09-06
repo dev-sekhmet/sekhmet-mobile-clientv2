@@ -37,7 +37,7 @@ export const displayConversationName = (accountId:string, conversation: Conversa
 
 export type DateFormatContext = 'chatItem' | 'conversation' | 'message';
 
-export const getWhatsAppFormattedDate = (date: Date, context: DateFormatContext): string => {
+export const getWhatsAppFormattedDate = (date: Date | number, context: DateFormatContext): string => {
     const today = Moment();
     const yesterday = Moment().subtract(1, 'day');
 

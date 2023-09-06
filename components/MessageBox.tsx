@@ -152,7 +152,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                     {width:  "auto"},
                 ]}>
                 {!isMe && <Text style={styles.author}>
-                    {message.author}
+                    {message.author?.friendlyName}
                 </Text>}
                 {repliedTo && <MessageReply message={repliedTo}/>}
                 <View>

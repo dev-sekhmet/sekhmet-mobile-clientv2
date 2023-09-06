@@ -5,7 +5,7 @@ import React, {useContext, useEffect, useRef, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
 import SekhmetActivityIndicator from "../../components/SekhmetActivityIndicator";
-import {displayConversationName} from "../../shared/conversation.utils";
+import {displayConversationName, getWhatsAppFormattedDate} from "../../shared/conversation.utils";
 import {Message as TwilioMessage, User} from "@twilio/conversations";
 import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
@@ -15,11 +15,20 @@ import {GiftedChat, IMessage} from "react-native-gifted-chat";
 import 'dayjs/locale/fr'
 
 
-function HeaderTitle({ title, typing }:{ title:string, typing :boolean}) {
+const HeaderTitle = ({title, typing}: { title: string, typing: boolean }) => {
     return (
         <View>
             <Text style={styles.titleText}>{title}</Text>
             {typing && <Text>écrit ...</Text>}
+        </View>
+    );
+}
+const Day = ({createdAt}: { createdAt: Date | undefined | number }) => {
+    return (
+        <View style={styles.dateDividerContainer}>
+            <Text style={styles.dateDividerText}>
+                {getWhatsAppFormattedDate(createdAt || 0, 'conversation')}
+            </Text>
         </View>
     );
 }
@@ -88,10 +97,10 @@ const ConversationSrreen = () => {
         }
     }, [conversationMessages]);
 
-    const needsDateDivider = (index: number, messages: Message[]): boolean => {
-        if (index === 0) return true;
-        const currentDate = Moment(messages[index].twilioMessage.dateUpdated || undefined);
-        const previousDate = Moment(messages[index - 1].twilioMessage.dateUpdated || undefined);
+    const needsDateDivider = (messageCurr: IMessage | undefined, messagePrev: IMessage | undefined): boolean => {
+        if (!messageCurr) return true;
+        const currentDate = Moment(messageCurr?.createdAt || undefined);
+        const previousDate = Moment(messagePrev?.createdAt || undefined);
         return !currentDate.isSame(previousDate, 'day');
     }
 
@@ -119,13 +128,19 @@ const ConversationSrreen = () => {
                         },
                     }
                 })}
-                infiniteScroll={true}
+                placeholder="Votre message..."
                 onLoadEarlier={()=>onRefresh()}
                 loadEarlier={true}
                 locale='fr'
                 renderLoading={()=><SekhmetActivityIndicator/>}
                 inverted={false}
                 onSend={messages => onSend(messages)}
+                renderDay={(props) => {
+
+                    if (needsDateDivider(props.currentMessage, props.previousMessage)) {
+                        return <Day createdAt={props.currentMessage?.createdAt}/>
+                    }
+                }}
                 user={{
                     _id: account?.id,
                     ...account

@@ -1,4 +1,4 @@
-import {FlatList, SafeAreaView, StyleSheet} from 'react-native';
+import {Alert, FlatList, SafeAreaView, StyleSheet} from 'react-native';
 import {Text, View} from '../../components/Themed';
 import {useLocalSearchParams, useNavigation} from "expo-router";
 import React, {useContext, useEffect, useRef, useState} from "react";
@@ -13,6 +13,7 @@ import {Message} from "../../constants/Type";
 import Moment from "moment/moment";
 import {GiftedChat, IMessage} from "react-native-gifted-chat";
 import 'dayjs/locale/fr'
+import {useActionSheet} from "@expo/react-native-action-sheet";
 
 
 const HeaderTitle = ({title, typing}: { title: string, typing: boolean }) => {
@@ -42,12 +43,12 @@ const ConversationSrreen = () => {
         fetchMoreMessages,
         messagePaginator,
     } = useContext(AppContext);
-
+    const {showActionSheetWithOptions} = useActionSheet();
     const { conversation, isLoading, error } = useConversation(uniqueName);
     const conversationMessages = messages?.get(conversation?.sid || '') || [];
     const {account} = useAccount();
     const [user, setUser] = useState<User | undefined>(twilioClient?.user);
-    const [messageReplyTo, setMessageReplyTo] = useState<Message | null>(
+    const [messageReplyTo, setMessageReplyTo] = useState<IMessage | null>(
         null
     );
     const [messagesAuthor, setMessagesAuthor] = useState<Message[]>([]);
@@ -113,6 +114,56 @@ const ConversationSrreen = () => {
 
     }
 
+
+    const deleteMessage = async () => {
+        //message.twilioMessage.remove();
+    };
+
+
+    const confirmDelete = (message: IMessage) => {
+            Alert.alert(
+                "Confirmer la Suppression",
+                "Voulez-vous vraiment supprimer ce message ?",
+                [
+                    {
+                        text: "Supprimer",
+                        onPress: deleteMessage,
+                        style: "destructive",
+                    },
+                    {
+                        text: "Cancel",
+                    },
+                ]
+            );
+
+    };
+
+    const onActionPress = (message: IMessage, index?: number) => {
+        if (index === 0) {
+            setMessageReplyTo(message);
+        } else if (index === 1) {
+            if (message.user._id === account?.id) {
+                confirmDelete(message);
+            } else {
+                Alert.alert("Action impossible", "Ceci n'est pas votre message");
+            }
+        }
+    };
+
+    const openActionMenu = (message: IMessage) => {
+        const options = ["Repondre", "Supprimer", "Annuler"];
+        const destructiveButtonIndex = 1;
+        const cancelButtonIndex = 2;
+        showActionSheetWithOptions(
+            {
+                options,
+                destructiveButtonIndex,
+                cancelButtonIndex,
+            },
+            index => onActionPress(message, index)
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <GiftedChat
@@ -136,10 +187,12 @@ const ConversationSrreen = () => {
                 inverted={false}
                 onSend={messages => onSend(messages)}
                 renderDay={(props) => {
-
                     if (needsDateDivider(props.currentMessage, props.previousMessage)) {
                         return <Day createdAt={props.currentMessage?.createdAt}/>
                     }
+                }}
+                onLongPress={(context, message)=>{
+                    openActionMenu(message);
                 }}
                 user={{
                     _id: account?.id,

@@ -14,6 +14,7 @@ import Moment from "moment/moment";
 import {GiftedChat, IMessage} from "react-native-gifted-chat";
 import 'dayjs/locale/fr'
 import {useActionSheet} from "@expo/react-native-action-sheet";
+import MessageInput from "../../components/MessageInput";
 
 
 const HeaderTitle = ({title, typing}: { title: string, typing: boolean }) => {
@@ -53,11 +54,10 @@ const ConversationSrreen = () => {
     );
     const [messagesAuthor, setMessagesAuthor] = useState<Message[]>([]);
 
-    const [refreshing, setRefreshing] = useState(false);
+    const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
 
     const navigation = useNavigation();
-    const flatListRef = useRef<FlatList>(null);
 
 
 
@@ -70,12 +70,12 @@ const ConversationSrreen = () => {
         setMessagesAuthor(messagesWithAuthors);
     };
 
-    const onRefresh = async () => {
-        setRefreshing(true);
+    const loadEarlier = async () => {
+        setIsLoadingEarlier(true);
         if (fetchMoreMessages) {
             await fetchMoreMessages(conversation?.sid || '');
         }
-        setRefreshing(false);
+        setIsLoadingEarlier(false);
     };
 
 
@@ -180,8 +180,9 @@ const ConversationSrreen = () => {
                     }
                 })}
                 placeholder="Votre message..."
-                onLoadEarlier={()=>onRefresh()}
+                onLoadEarlier={()=>loadEarlier()}
                 loadEarlier={true}
+                isLoadingEarlier={isLoadingEarlier}
                 locale='fr'
                 renderLoading={()=><SekhmetActivityIndicator/>}
                 inverted={false}
@@ -194,6 +195,12 @@ const ConversationSrreen = () => {
                 onLongPress={(context, message)=>{
                     openActionMenu(message);
                 }}
+                renderInputToolbar={(props) =>
+                    <MessageInput
+                        conversation={conversation}
+                        messageReplyTo={null}
+                        removeMessageReplyTo={() => setMessageReplyTo(null)}
+                    />}
                 user={{
                     _id: account?.id,
                     ...account

@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {AUTH_TOKEN} from "../constants/Keys";
 
 const api = axios.create({
-    baseURL: 'http://dd8f-102-244-223-19.ngrok.io/api',
+    baseURL: 'http://88c5-102-244-223-19.ngrok.io/api',
 });
 
 api.interceptors.request.use(

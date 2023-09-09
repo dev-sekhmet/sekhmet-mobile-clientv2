@@ -1,6 +1,6 @@
-import {Alert, FlatList, SafeAreaView, StyleSheet} from 'react-native';
+import {Alert, FlatList, Pressable, SafeAreaView, StyleSheet} from 'react-native';
 import {Text, View} from '../../components/Themed';
-import {useLocalSearchParams, useNavigation} from "expo-router";
+import {Link, useLocalSearchParams, useNavigation} from "expo-router";
 import React, {useContext, useEffect, useRef, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
@@ -11,10 +11,12 @@ import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
 import {Message} from "../../constants/Type";
 import Moment from "moment/moment";
-import {GiftedChat, IMessage} from "react-native-gifted-chat";
+import {GiftedChat, IMessage, LoadEarlier} from "react-native-gifted-chat";
 import 'dayjs/locale/fr'
 import {useActionSheet} from "@expo/react-native-action-sheet";
 import MessageInput from "../../components/MessageInput";
+import {Ionicons} from "@expo/vector-icons";
+import Colors from "../../constants/Colors";
 
 
 const HeaderTitle = ({title, typing}: { title: string, typing: boolean }) => {
@@ -35,6 +37,37 @@ const Day = ({createdAt}: { createdAt: Date | undefined | number }) => {
     );
 }
 
+const ScrollToBottomComponent = ({ unreadCount, onPress }: { unreadCount : number, onPress : ()=>void}) => {
+    return (
+        <Pressable
+            onPress={onPress}
+            style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: Colors.light.sekhmetGreen,
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}>
+            <Ionicons name="arrow-down" size={24} color="white" />
+            {unreadCount > 0 && (
+                <View style={{
+                    position: 'absolute',
+                    top: 5,
+                    right: 5,
+                    backgroundColor: 'red',
+                    borderRadius: 10,
+                    width: 20,
+                    height: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <Text style={{ color: 'white', fontSize: 12 }}>{unreadCount}</Text>
+                </View>
+            )}
+        </Pressable>
+    );
+};
 const ConversationSrreen = () => {
     const {uniqueName} = useLocalSearchParams<any>();
     const {
@@ -47,27 +80,38 @@ const ConversationSrreen = () => {
     const {showActionSheetWithOptions} = useActionSheet();
     const { conversation, isLoading, error } = useConversation(uniqueName);
     const conversationMessages = messages?.get(conversation?.sid || '') || [];
+    const conversationMessagePaginator = messagePaginator?.get(conversation?.sid || '');
     const {account} = useAccount();
     const [user, setUser] = useState<User | undefined>(twilioClient?.user);
     const [messageReplyTo, setMessageReplyTo] = useState<IMessage | null>(
         null
     );
-    const [messagesAuthor, setMessagesAuthor] = useState<Message[]>([]);
+    const [giftedChatMessages, setGiftedChatMessages] = useState<IMessage[]>([]);
 
     const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
 
     const navigation = useNavigation();
+    const giftedChatRef = useRef<any>();
 
 
-
-    const addMessagesAuthors = async (items: TwilioMessage[]) => {
+    const mapToGiftedChatMessages = async (items: TwilioMessage[]) => {
         const messagesWithAuthors = await Promise.all(items.map(async twilioMessage => {
             const user = await twilioClient?.getUser(twilioMessage.author || '');
-            return { twilioMessage, author: user, deleted: false };
+            return {
+                _id: twilioMessage.sid,
+                text: twilioMessage.body || '',
+                createdAt: twilioMessage.dateCreated || 1,
+                user: {
+                    _id: user?.identity || '',
+                    name: user?.friendlyName  || '',
+                    avatar: 'https://placeimg.com/140/140/any',
+                },
+                deleted: false,
+            }
         }));
 
-        setMessagesAuthor(messagesWithAuthors);
+        setGiftedChatMessages(messagesWithAuthors);
     };
 
     const loadEarlier = async () => {
@@ -94,9 +138,19 @@ const ConversationSrreen = () => {
 
     useEffect(() => {
         if (conversationMessages.length > 0) {
-            addMessagesAuthors(conversationMessages);
+            mapToGiftedChatMessages(conversationMessages);
         }
+
     }, [conversationMessages]);
+
+    useEffect(() => {
+        if (giftedChatMessages.length > 0) {
+            setTimeout(() => {
+                giftedChatRef.current.scrollToEnd({ animated: true });
+            }, 1000);
+        }
+
+    }, [giftedChatMessages]);
 
     const needsDateDivider = (messageCurr: IMessage | undefined, messagePrev: IMessage | undefined): boolean => {
         if (!messageCurr) return true;
@@ -105,20 +159,14 @@ const ConversationSrreen = () => {
         return !currentDate.isSame(previousDate, 'day');
     }
 
-
     if (isLoading) {
-        return <SekhmetActivityIndicator/>;
-    }
-
-    const onSend = (messages: IMessage[]) => {
-
+        return <SekhmetActivityIndicator />;
     }
 
 
     const deleteMessage = async () => {
         //message.twilioMessage.remove();
     };
-
 
     const confirmDelete = (message: IMessage) => {
             Alert.alert(
@@ -150,6 +198,10 @@ const ConversationSrreen = () => {
         }
     };
 
+    const scrollToBottom = () => {
+        giftedChatRef.current.scrollToEnd({ animated: true });
+    };
+
     const openActionMenu = (message: IMessage) => {
         const options = ["Repondre", "Supprimer", "Annuler"];
         const destructiveButtonIndex = 1;
@@ -167,26 +219,24 @@ const ConversationSrreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <GiftedChat
-                messages={messagesAuthor.map(mgs => {
-                    return {
-                        _id: mgs.twilioMessage.sid,
-                        text: mgs.twilioMessage.body || '',
-                        createdAt: mgs.twilioMessage.dateCreated || 1,
-                        user: {
-                            _id: mgs.author?.identity || '',
-                            name: mgs.author?.friendlyName  || '',
-                            avatar: 'https://placeimg.com/140/140/any',
-                        },
-                    }
-                })}
+                scrollToBottom={true}
+                scrollToBottomComponent={() => <ScrollToBottomComponent unreadCount={0} onPress={scrollToBottom}/>}
+                listViewProps={{
+                    ref: giftedChatRef
+                }}
+                messages={giftedChatMessages}
                 placeholder="Votre message..."
                 onLoadEarlier={()=>loadEarlier()}
                 loadEarlier={true}
                 isLoadingEarlier={isLoadingEarlier}
+                renderLoadEarlier={(props)=>{
+                    if (conversationMessagePaginator?.hasPrevPage) {
+                        return <LoadEarlier {...props} label='voir les précédents messages'/>
+                    }
+                }}
                 locale='fr'
                 renderLoading={()=><SekhmetActivityIndicator/>}
                 inverted={false}
-                onSend={messages => onSend(messages)}
                 renderDay={(props) => {
                     if (needsDateDivider(props.currentMessage, props.previousMessage)) {
                         return <Day createdAt={props.currentMessage?.createdAt}/>

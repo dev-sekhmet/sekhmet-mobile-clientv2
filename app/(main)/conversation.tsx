@@ -11,7 +11,7 @@ import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
 import {Message} from "../../constants/Type";
 import Moment from "moment/moment";
-import {GiftedChat, IMessage, LoadEarlier} from "react-native-gifted-chat";
+import {GiftedChat, IMessage, InputToolbar, LoadEarlier} from "react-native-gifted-chat";
 import 'dayjs/locale/fr'
 import {useActionSheet} from "@expo/react-native-action-sheet";
 import MessageInput from "../../components/MessageInput";
@@ -246,6 +246,7 @@ const ConversationSrreen = () => {
                     openActionMenu(message);
                 }}
                 renderInputToolbar={(props) =>
+                    /*<InputToolbar {...props}/>*/
                     <MessageInput
                         conversation={conversation}
                         messageReplyTo={null}

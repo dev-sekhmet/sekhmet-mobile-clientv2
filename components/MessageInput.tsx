@@ -1,7 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,} from 'react-native';
-import {AntDesign, Feather, Ionicons, MaterialCommunityIcons, SimpleLineIcons,} from '@expo/vector-icons';
-import EmojiSelector from 'react-native-emoji-selector';
+import {AntDesign, Feather, Ionicons, MaterialCommunityIcons,} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {Audio} from 'expo-av';
 import AudioPlayer from './media/AudioPlayer';
@@ -12,16 +11,20 @@ import {Conversation} from "@twilio/conversations";
 import {Message} from "../constants/Type";
 import {ImagePickerAsset} from "expo-image-picker/src/ImagePicker.types";
 import {RecordingOptionsPresets} from "expo-av/src/Audio/RecordingConstants";
+import {Composer, ComposerProps} from "react-native-gifted-chat/lib/Composer";
 
 
 const MessageInput = ({
                           conversation,
                           messageReplyTo,
-                          removeMessageReplyTo
-                      }: { conversation: Conversation | null, messageReplyTo: Message| null, removeMessageReplyTo: () => void }) => {
+                          removeMessageReplyTo,
+                      }: {
+    conversation: Conversation | null,
+    messageReplyTo: Message | null,
+    removeMessageReplyTo: () => void,
+}) => {
 
     const [inputMessageText, setInputMessageText] = useState("");
-    const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [image, setImage] = useState<string | null>(null);
     const [progress, setProgress] = useState(0);
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -100,7 +103,6 @@ const MessageInput = ({
 
     const resetFields = () => {
         setInputMessageText("");
-        setIsEmojiPickerOpen(false);
         setImage(null);
         setProgress(0);
         setSoundURI(null);
@@ -211,16 +213,15 @@ const MessageInput = ({
         return sendMedia(image, "image");
     };
 
-
     const sendVideo = async () => {
         return sendMedia(videoURI, "video");
     };
 
     return (
         <KeyboardAvoidingView
-            style={[styles.root, {height: isEmojiPickerOpen ? "50%" : "auto"}]}
+            style={[Platform.OS === "android" ?styles.root:null, {height: "auto", padding:10}]}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={100}
+            keyboardVerticalOffset={50}
         >
             {messageReplyTo && (
                 <View
@@ -230,8 +231,7 @@ const MessageInput = ({
                         flexDirection: "row",
                         alignSelf: "stretch",
                         justifyContent: "space-between",
-                    }}
-                >
+                    }}>
                     <View style={{flex: 1}}>
                         <Text>Reply to:</Text>
                         <MessageBox message={messageReplyTo}/>
@@ -291,29 +291,17 @@ const MessageInput = ({
 
             <View style={styles.row}>
                 <View style={styles.inputContainer}>
-                    <Pressable
-                        onPress={() =>
-                            setIsEmojiPickerOpen((currentValue) => !currentValue)
-                        }
-                    >
-                        <SimpleLineIcons
-                            name="emotsmile"
-                            size={24}
-                            color="#595959"
-                            style={styles.icon}
-                        />
-                    </Pressable>
 
-                    <TextInput
-                        style={styles.input}
-                        multiline={true}
-                        value={inputMessageText}
-                        onChangeText={(text) => {
-                            setInputMessageText(text);
-                            startTyping();
-                        }}
-                        placeholder="Votre message..."
-                    />
+                    <Composer placeholder="Votre message..."
+                              textInputProps={{
+                                  style: styles.input,
+                                  value: inputMessageText
+                              }}
+                              onTextChanged={(text) => {
+                                  setInputMessageText(text);
+                                  startTyping();
+                              }}
+                              multiline={true}/>
 
                     <Pressable onPress={pickImage}>
                         <Feather
@@ -354,22 +342,16 @@ const MessageInput = ({
                     )}
                 </Pressable>
             </View>
-
-            {isEmojiPickerOpen && (
-                <EmojiSelector
-                    onEmojiSelected={(emoji) =>
-                        setInputMessageText((currentMessage) => currentMessage + emoji)
-                    }
-                    columns={8}
-                />
-            )}
         </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
     root: {
-        padding: 10,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        position: "absolute",
     },
     row: {
         flexDirection: "row",

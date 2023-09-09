@@ -95,9 +95,13 @@ const ConversationSrreen = () => {
     const giftedChatRef = useRef<any>();
 
 
+    const getMedia = async (message: TwilioMessage) => {
+        return message.attachedMedia && message.attachedMedia.length>0? await message.attachedMedia[0].getContentTemporaryUrl():'';
+    }
     const mapToGiftedChatMessages = async (items: TwilioMessage[]) => {
         const messagesWithAuthors = await Promise.all(items.map(async twilioMessage => {
             const user = await twilioClient?.getUser(twilioMessage.author || '');
+            const image =  (await getMedia(twilioMessage)) ?? undefined;
             return {
                 _id: twilioMessage.sid,
                 text: twilioMessage.body || '',
@@ -107,6 +111,7 @@ const ConversationSrreen = () => {
                     name: user?.friendlyName  || '',
                     avatar: 'https://placeimg.com/140/140/any',
                 },
+                image,
                 deleted: false,
             }
         }));

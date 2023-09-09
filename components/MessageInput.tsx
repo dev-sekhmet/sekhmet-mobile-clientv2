@@ -9,7 +9,7 @@ import {useNavigation} from '@react-navigation/core';
 import Colors from "../constants/Colors";
 import {Conversation} from "@twilio/conversations";
 import {Message} from "../constants/Type";
-import {ImagePickerAsset} from "expo-image-picker/src/ImagePicker.types";
+import {ImagePickerAsset, ImagePickerResult} from "expo-image-picker/src/ImagePicker.types";
 import {RecordingOptionsPresets} from "expo-av/src/Audio/RecordingConstants";
 import {Composer, ComposerProps} from "react-native-gifted-chat/lib/Composer";
 
@@ -110,13 +110,15 @@ const MessageInput = ({
         removeMessageReplyTo();
     };
 
-    const setImageOrVideoUri = (result: ImagePickerAsset) => {
-        if (result.assetId) {
-            if (result.type === 'video') {
-                setVideoURI(result.uri);
+    const setImageOrVideoUri = (result: ImagePickerResult) => {
+        console.log("result", result);
+        if (!result.canceled) {
+            var asset = result.assets[0];
+            if (asset.type === 'video') {
+                setVideoURI(asset.uri);
             }
-            if (result.type === 'image') {
-                setImage(result.uri);
+            if (asset.type === 'image') {
+                setImage(asset.uri);
             }
         }
     }
@@ -124,13 +126,11 @@ const MessageInput = ({
 // Image picker
     const pickImage = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.All,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
             aspect: [4, 3],
             quality: 0.5,
         });
-        console.log("result", result);
-        // @ts-ignore
         setImageOrVideoUri(result);
     };
 
@@ -139,7 +139,6 @@ const MessageInput = ({
             mediaTypes: ImagePicker.MediaTypeOptions.All,
             aspect: [4, 3],
         });
-        // @ts-ignore
         setImageOrVideoUri(result);
     };
 

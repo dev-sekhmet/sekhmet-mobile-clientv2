@@ -1,26 +1,17 @@
 import React, {useEffect, useState} from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    Pressable,
-    StyleSheet,
-    useWindowDimensions,
-} from 'react-native';
-import {FontAwesome, FontAwesome5, Ionicons} from '@expo/vector-icons';
+import {ActivityIndicator, Alert, Dimensions, FlatList, Pressable, StyleSheet,} from 'react-native';
+import {FontAwesome5} from '@expo/vector-icons';
 import {useActionSheet} from '@expo/react-native-action-sheet';
 import AudioPlayer from './media/AudioPlayer';
 import MessageReply from './MessageReply';
 import {Text, View} from "./Themed";
-import Moment from 'moment';
-import {Media, User} from "@twilio/conversations";
+import {User} from "@twilio/conversations";
 import {forkJoin, from, map,} from "rxjs";
 import VideoPlayer from "./media/VideoPlayer";
 import ImageView from "./media/ImageView";
 import Colors from "../constants/Colors";
-import {APP_TIME_FORMAT, Message} from "../constants/Type";
+import {Message} from "../constants/Type";
+import {getWhatsAppFormattedDate} from "../shared/conversation.utils";
 
 const grey = '#F2F2F2';
 const blue = '#ECF3FE';
@@ -50,10 +41,10 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
         setAsRead();
     }, [isMe, message]);
 
-    const msg = message.twilioMessage;
+    const twilioMessage = message.twilioMessage;
     useEffect(() => {
-        if (msg.attachedMedia) {
-            forkJoin(msg.attachedMedia.map(value => {
+        if (twilioMessage.attachedMedia) {
+            forkJoin(twilioMessage.attachedMedia.map(value => {
                 return from<Promise<string | null>>(value.getContentTemporaryUrl())
                     .pipe(map(url => {
                         const res: MediaData = {sid:value.sid, type: 'file', url}
@@ -79,7 +70,7 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             setIsMe(message.twilioMessage.author === authUser?.identity);
         };
         checkIfMe();
-        if (!msg?.body) {
+        if (!twilioMessage?.body) {
             return;
         }
 
@@ -88,13 +79,6 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
 
     const setAsRead = async () => {
         if (isMe === false && message) {
-            // if (isMe === false && message.read) {
-
-            /*            await DataStore.save(
-                            MessageModel.copyOf(message, (updated) => {
-                                updated.status = "READ";
-                            })
-                        );*/
         }
     };
 
@@ -168,15 +152,15 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                     {width:  "auto"},
                 ]}>
                 {!isMe && <Text style={styles.author}>
-                    {message.author}
+                    {message.author?.friendlyName}
                 </Text>}
                 {repliedTo && <MessageReply message={repliedTo}/>}
-                <View style={styles.row}>
-                    {msg.type === 'media' && msg.attachedMedia && (
+                <View>
+                    {twilioMessage.type === 'media' && twilioMessage.attachedMedia && (
                         <FlatList
                             data={mediaContents}
                             renderItem={({item, index}) => (
-                                <View style={{marginBottom: msg.body ? 10 : 0}}>
+                                <View style={{marginBottom: twilioMessage.body ? 10 : 0}}>
                                     {item.type === 'image' ? <ImageView
                                             uri={item.url || ''}
                                             style={{
@@ -207,19 +191,23 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
                         />
 
                     )}
-                    {!!msg.body && (
+                    {!!twilioMessage.body && (
                         <View>
-                            {message.deleted && <View style={{flexDirection: "row",
-                                alignItems:'center',
-                                backgroundColor: isMe ? blue : grey}}>
-                                <FontAwesome5 size={10} name="ban"/>
-                                <Text style={{fontStyle: 'italic', marginLeft:3}}>
+                            {message.deleted &&
+                                <View style={[
+                                    styles.deletedMessage,
+                                    {backgroundColor: isMe ? blue : grey}
+                                ]}>
+                                    <FontAwesome5 size={10} name="ban" color='white'/>
+                                    <Text style={styles.deletedMessageText}>
                                     ce message a été supprimé
                                 </Text>
                             </View>}
-                            {!message.deleted && <Text style={{backgroundColor: isMe ? blue : grey}}>
-                                {msg.body}
-                            </Text>}
+                            {!message.deleted &&
+                                <View style={{backgroundColor: isMe ? blue : grey}}>
+                                    <Text style={{fontSize: 16}}>
+                                        {twilioMessage.body}
+                                    </Text></View>}
                         </View>)
                     }
                 </View>
@@ -227,34 +215,23 @@ const MessageBox = (props: { message: Message, authUser?: User, setAsMessageRepl
             <Text style={[
                 isMe ? styles.rightHour : styles.leftHour,
                 {width: soundURI ? "75%" : "auto"},
-            ]}>{Moment(msg.dateUpdated).format(APP_TIME_FORMAT)}</Text>
+            ]}>{twilioMessage && twilioMessage?.dateUpdated ? getWhatsAppFormattedDate(new Date(twilioMessage.dateUpdated || undefined), 'message') : ''}</Text>
         </Pressable>
     );
 };
-
 const styles = StyleSheet.create({
     container: {
-        padding: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
         marginTop: 10,
-        marginLeft: 10,
-        marginRight: 10,
-        borderRadius: 20,
-
+        borderRadius: 12,
         maxWidth: "75%",
-    }, containerHour: {
-        padding: 10,
-        margin: 10,
-        borderRadius: 10,
-        maxWidth: "75%",
-    },
-    row: {
-        flexDirection: "row",
-        alignItems: "flex-end",
     },
     messageReply: {
         backgroundColor: "gray",
         padding: 5,
         borderRadius: 5,
+        marginBottom: 5,
     },
     leftContainer: {
         backgroundColor: grey,
@@ -262,26 +239,46 @@ const styles = StyleSheet.create({
         marginRight: "auto",
     },
     leftHour: {
-        marginLeft: 10,
+        fontSize: 12,
+        marginLeft: 15,
         color: '#8C8C8C',
         marginRight: "auto",
+        marginTop: 5,
     },
     rightContainer: {
         backgroundColor: blue,
         marginLeft: "auto",
         marginRight: 10,
-        alignItems: "flex-end",
     },
     rightHour: {
+        fontSize: 12,
         marginLeft: "auto",
-        marginRight: 10,
+        marginRight: 15,
         color: '#8C8C8C',
-        alignItems: "flex-end",
+        marginTop: 5,
     },
     author: {
         color: Colors.light.sekhmetOrange,
         fontWeight: "bold",
-    }
+        marginBottom: 5,
+    },
+    textMessage: {
+        fontSize: 16,
+        color: 'white',
+    },
+    deletedMessage: {
+        flexDirection: "row",
+        alignItems: 'center',
+        padding: 5,
+        borderRadius: 12,
+    },
+    deletedMessageText: {
+        fontStyle: 'italic',
+        marginLeft: 5,
+        fontSize: 15,
+        color: 'white',
+    },
 });
+
 
 export default MessageBox;

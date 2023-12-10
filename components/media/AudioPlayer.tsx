@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import SekhmetActivityIndicator from "../SekhmetActivityIndicator";
 
-const AudioPlayer = ({ soundURI }:{ soundURI: string | null }) => {
+const AudioPlayer = ({ soundURI }:{ soundURI: string | null}) => {
     const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [paused, setPause] = useState(true);
     const [audioProgress, setAudioProgress] = useState(0);
@@ -12,7 +12,7 @@ const AudioPlayer = ({ soundURI }:{ soundURI: string | null }) => {
 
     useEffect(() => {
         loadSound();
-        () => {
+        return () => {
             // unload sound
             if (sound) {
                 sound.unloadAsync();
@@ -20,17 +20,21 @@ const AudioPlayer = ({ soundURI }:{ soundURI: string | null }) => {
         };
     }, [soundURI]);
 
+
     const loadSound = async () => {
         if (!soundURI) {
             return;
         }
+        if (sound) {
+            await sound.unloadAsync();
+        }
 
-        const { sound } = await Audio.Sound.createAsync(
+        const { sound: soundAudio } = await Audio.Sound.createAsync(
             { uri: soundURI },
             {},
             onPlaybackStatusUpdate
         );
-        setSound(sound);
+        setSound(soundAudio);
     };
 
     // Audio

@@ -77,17 +77,23 @@ export default function TabLayout() {
 
     const fetchMoreMessages = async (conversationSid: string) => {
         const currentPaginator = messagePaginator.get(conversationSid);
-        if (currentPaginator && currentPaginator.hasNextPage) {
+        if (currentPaginator && currentPaginator.hasPrevPage) {
             try {
-                const newPaginator = await currentPaginator.nextPage();
+                const newPaginator = await currentPaginator.prevPage();
                 setMessagePaginator(prev => {
                     const updatedPaginator = new Map(prev);
                     updatedPaginator.set(conversationSid, newPaginator);
                     return updatedPaginator;
                 });
+
                 setMessages(prev => {
+                    const existingMessages = prev.get(conversationSid) || [];
+                    const newMessages = newPaginator.items.filter(
+                        item => !existingMessages.some(existing => existing.sid === item.sid)
+                    );
+                    const allMessages = [...newMessages, ...existingMessages];
+
                     const updatedMessages = new Map(prev);
-                    const allMessages = [...newPaginator.items, ...(prev.get(conversationSid) || [])];
                     updatedMessages.set(conversationSid, allMessages);
                     return updatedMessages;
                 });
@@ -122,21 +128,29 @@ export default function TabLayout() {
         setTypingStatus(updatedStatus);
     };
     const setMessage = (message: Message) => {
-        const updatedMessages = new Map(messages);
-        let conversationMessages = updatedMessages.get(message.conversation.sid) || [];
-        conversationMessages = [...conversationMessages, message];
-        updatedMessages.set(message.conversation.sid, conversationMessages);
-        setMessages(updatedMessages);
+        setMessages(prevMessages => {
+            const updatedMessages = new Map(prevMessages);
+            let conversationMessages = updatedMessages.get(message.conversation.sid) || [];
+            if (!conversationMessages.some(existingMessage => existingMessage.sid === message.sid)) {
+                conversationMessages = [...conversationMessages, message];
+            }
+            updatedMessages.set(message.conversation.sid, conversationMessages);
+            return updatedMessages;
+        });
     };
 
     const unSetMessage = (message: Message) => {
-        const updatedMessages = new Map(messages);
-        const conversationMessages = updatedMessages.get(message.conversation.sid)?.filter(m => m.sid !== message.sid);
-        if (conversationMessages) {
-            updatedMessages.set(message.conversation.sid, conversationMessages);
-            setMessages(updatedMessages);
-        }
+        setMessages(prevMessages => {
+            const updatedMessages = new Map(prevMessages);
+            const conversationMessages = updatedMessages.get(message.conversation.sid)?.filter(m => m.sid !== message.sid);
+
+            if (conversationMessages) {
+                updatedMessages.set(message.conversation.sid, conversationMessages);
+            }
+            return updatedMessages;
+        });
     };
+
 
     const doesConversationExists = (conversation: Conversation) => {
         return conversations.some(existingConversation => existingConversation.sid === conversation.sid);
@@ -147,7 +161,6 @@ export default function TabLayout() {
             const client = new Client(token)
                 .on('initialized', () => {
                     console.log('initialized OK');
-
                     setTwilioClient(client);
                     fetchConversations(client);
                 })
@@ -207,8 +220,6 @@ export default function TabLayout() {
     }
 
     const isLoadind = authLoading || tokenLoading;
-
-
 
     useEffect(() => {
         if (isLoadind) {

@@ -1,21 +1,26 @@
-import {FlatList, RefreshControl, SafeAreaView, StyleSheet} from 'react-native';
-import {View, Text} from '../../components/Themed';
-import {Stack, useLocalSearchParams,useNavigation} from "expo-router";
-import React, {useContext, useEffect, useState} from "react";
+import {Alert, Pressable, SafeAreaView, StyleSheet} from 'react-native';
+import {Text, View} from '../../components/Themed';
+import {useLocalSearchParams, useNavigation} from "expo-router";
+import React, {useContext, useEffect, useRef, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
 import SekhmetActivityIndicator from "../../components/SekhmetActivityIndicator";
-import {displayConversationName} from "../../shared/conversation.utils";
-import {Conversation, Message as TwilioMessage, Paginator, User} from "@twilio/conversations";
+import {displayConversationName, getWhatsAppFormattedDate} from "../../shared/conversation.utils";
+import {Message as TwilioMessage, User} from "@twilio/conversations";
 import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
-import Moment from "moment";
-import {Message} from "../../constants/Type";
-import MessageBox from "../../components/MessageBox";
+import Moment from "moment/moment";
+import {GiftedChat, IMessage, LoadEarlier} from "react-native-gifted-chat";
+import 'dayjs/locale/fr'
+import {useActionSheet} from "@expo/react-native-action-sheet";
 import MessageInput from "../../components/MessageInput";
+import {Ionicons} from "@expo/vector-icons";
+import Colors from "../../constants/Colors";
+import AudioPlayer from "../../components/media/AudioPlayer";
+import VideoPlayer from "../../components/media/VideoPlayer";
 
 
-function HeaderTitle({ title, typing }:{ title:string, typing :boolean}) {
+const HeaderTitle = ({title, typing}: { title: string, typing: boolean }) => {
     return (
         <View>
             <Text style={styles.titleText}>{title}</Text>
@@ -23,7 +28,47 @@ function HeaderTitle({ title, typing }:{ title:string, typing :boolean}) {
         </View>
     );
 }
+const Day = ({createdAt}: { createdAt: Date | undefined | number }) => {
+    return (
+        <View style={styles.dateDividerContainer}>
+            <Text style={styles.dateDividerText}>
+                {getWhatsAppFormattedDate(createdAt || 0, 'conversation')}
+            </Text>
+        </View>
+    );
+}
 
+const ScrollToBottomComponent = ({ unreadCount, onPress }: { unreadCount : number, onPress : ()=>void}) => {
+    return (
+        <Pressable
+            onPress={onPress}
+            style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: Colors.light.sekhmetGreen,
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}>
+            <Ionicons name="arrow-down" size={24} color="white" />
+            {unreadCount > 0 && (
+                <View style={{
+                    position: 'absolute',
+                    top: 5,
+                    right: 5,
+                    backgroundColor: 'red',
+                    borderRadius: 10,
+                    width: 20,
+                    height: 20,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <Text style={{ color: 'white', fontSize: 12 }}>{unreadCount}</Text>
+                </View>
+            )}
+        </Pressable>
+    );
+};
 const ConversationSrreen = () => {
     const {uniqueName} = useLocalSearchParams<any>();
     const {
@@ -33,37 +78,64 @@ const ConversationSrreen = () => {
         fetchMoreMessages,
         messagePaginator,
     } = useContext(AppContext);
-
+    const {showActionSheetWithOptions} = useActionSheet();
     const { conversation, isLoading, error } = useConversation(uniqueName);
     const conversationMessages = messages?.get(conversation?.sid || '') || [];
+    const conversationMessagePaginator = messagePaginator?.get(conversation?.sid || '');
     const {account} = useAccount();
     const [user, setUser] = useState<User | undefined>(twilioClient?.user);
-    const [messageReplyTo, setMessageReplyTo] = useState<Message | null>(
+    const [messageReplyTo, setMessageReplyTo] = useState<IMessage | null>(
         null
     );
-    const [messagesAuthor, setMessagesAuthor] = useState<Message[]>([]);
+    const [giftedChatMessages, setGiftedChatMessages] = useState<IMessage[]>([]);
 
-    const [refreshing, setRefreshing] = useState(false);
+    const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
     const {typing, fullName} = typingStatus?.get(conversation?.sid || '') || {typing: false, fullName: ''};
 
     const navigation = useNavigation();
+    const giftedChatRef = useRef<any>();
 
 
-    const addMessagesAuthors = async (items: TwilioMessage[]) => {
+    const getMedia = async (message: TwilioMessage, type: 'image' | 'video' | 'audio' | 'application') => {
+        const media = message.attachedMedia && message.attachedMedia.length > 0 ? message.attachedMedia[0] : null;
+        if (media) {
+            console.log('media', media.contentType, media.contentType === 'image/jpeg');
+        }
+        return await media?.contentType.startsWith(type) ? media?.getContentTemporaryUrl() : null;
+    }
+    const mapToGiftedChatMessages = async (items: TwilioMessage[]) => {
+        console.log('mapToGiftedChatMessages items', items.length);
         const messagesWithAuthors = await Promise.all(items.map(async twilioMessage => {
             const user = await twilioClient?.getUser(twilioMessage.author || '');
-            return { twilioMessage, author: user?.friendlyName, deleted: false };
+            const image = (await getMedia(twilioMessage, 'image')) ?? undefined;
+            const video = (await getMedia(twilioMessage, 'video')) ?? undefined;
+            const audio = (await getMedia(twilioMessage, 'application')) ?? undefined;
+            return {
+                _id: twilioMessage.sid,
+                text: twilioMessage.body || '',
+                createdAt: twilioMessage.dateCreated || 1,
+                user: {
+                    _id: user?.identity || '',
+                    name: user?.friendlyName  || '',
+                    avatar: 'https://placeimg.com/140/140/any',
+                },
+                image,
+                video,
+                audio,
+                deleted: false,
+                embeded: twilioMessage
+            }
         }));
 
-        setMessagesAuthor(messagesWithAuthors);
+        setGiftedChatMessages(messagesWithAuthors);
     };
 
-    const onRefresh = async () => {
-        setRefreshing(true);
+    const loadEarlier = async () => {
+        setIsLoadingEarlier(true);
         if (fetchMoreMessages) {
             await fetchMoreMessages(conversation?.sid || '');
         }
-        setRefreshing(false);
+        setIsLoadingEarlier(false);
     };
 
 
@@ -82,40 +154,132 @@ const ConversationSrreen = () => {
 
     useEffect(() => {
         if (conversationMessages.length > 0) {
-            addMessagesAuthors(conversationMessages);
+            mapToGiftedChatMessages(conversationMessages);
         }
+
     }, [conversationMessages]);
 
+    useEffect(() => {
+        if (giftedChatMessages.length > 0) {
+            setTimeout(() => {
+                giftedChatRef.current.scrollToEnd({ animated: true });
+            }, 1000);
+        }
+
+    }, [giftedChatMessages]);
+
+    const needsDateDivider = (messageCurr: IMessage | undefined, messagePrev: IMessage | undefined): boolean => {
+        if (!messageCurr) return true;
+        const currentDate = Moment(messageCurr?.createdAt || undefined);
+        const previousDate = Moment(messagePrev?.createdAt || undefined);
+        return !currentDate.isSame(previousDate, 'day');
+    }
 
     if (isLoading) {
-        return <SekhmetActivityIndicator/>;
+        return <SekhmetActivityIndicator />;
     }
+
+
+    const deleteMessage = async (message: any) => {
+        message.embeded?.remove();
+    };
+
+    const confirmDelete = (message: IMessage) => {
+            Alert.alert(
+                "Confirmer la Suppression",
+                "Voulez-vous vraiment supprimer ce message ?",
+                [
+                    {
+                        text: "Supprimer",
+                        onPress: ()=>deleteMessage(message),
+                        style: "destructive",
+                    },
+                    {
+                        text: "Cancel",
+                    },
+                ]
+            );
+
+    };
+
+    const onActionPress = (message: IMessage, index?: number) => {
+        if (index === 0) {
+            setMessageReplyTo(message);
+        } else if (index === 1) {
+            if (message.user._id === account?.id) {
+                confirmDelete(message);
+            } else {
+                Alert.alert("Action impossible", "Ceci n'est pas votre message");
+            }
+        }
+    };
+
+    const scrollToBottom = () => {
+        giftedChatRef.current.scrollToEnd({ animated: true });
+    };
+
+    const openActionMenu = (message: IMessage) => {
+        const options = ["Repondre", "Supprimer", "Annuler"];
+        const destructiveButtonIndex = 1;
+        const cancelButtonIndex = 2;
+        showActionSheetWithOptions(
+            {
+                options,
+                destructiveButtonIndex,
+                cancelButtonIndex,
+            },
+            index => onActionPress(message, index)
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
-            <FlatList
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                    />
-                }
-                data={messagesAuthor}
-                renderItem={({item, index}) => (
-                    <View>
-                        <MessageBox
-                            message={item}
-                            authUser={twilioClient?.user}
-                            setAsMessageReply={() => setMessageReplyTo(item)}
-                        />
-                    </View>
-                )}
-                keyExtractor={item => item.twilioMessage.sid}
-            />
-            <MessageInput
-                conversation={conversation}
-                messageReplyTo={messageReplyTo}
-                removeMessageReplyTo={() => setMessageReplyTo(null)}
+            <GiftedChat
+                scrollToBottom={true}
+                scrollToBottomComponent={() => <ScrollToBottomComponent unreadCount={0} onPress={scrollToBottom}/>}
+                listViewProps={{
+                    ref: giftedChatRef
+                }}
+                messages={giftedChatMessages}
+                placeholder="Votre message..."
+                onLoadEarlier={()=>loadEarlier()}
+                loadEarlier={true}
+                isLoadingEarlier={isLoadingEarlier}
+                renderLoadEarlier={(props)=>{
+                    if (conversationMessagePaginator?.hasPrevPage) {
+                        return <LoadEarlier {...props} label='voir les précédents messages'/>
+                    }
+                }}
+                locale='fr'
+                renderLoading={()=><SekhmetActivityIndicator/>}
+                inverted={false}
+                renderDay={(props) => {
+                    if (needsDateDivider(props.currentMessage, props.previousMessage)) {
+                        return <Day createdAt={props.currentMessage?.createdAt}/>
+                    }
+                }}
+                onLongPress={(context, message)=>{
+                    openActionMenu(message);
+                }}
+                renderMessageAudio={props => {
+                    return <AudioPlayer soundURI={props.currentMessage?.audio || null}/>
+                }}
+                renderMessageVideo={props => {
+                    const isCurrentUser = props.currentMessage?.user._id === account?.id; // Adjust based on how you determine the current user
+                    return <VideoPlayer uri={props.currentMessage?.video || ''} isCurrentUser={isCurrentUser} />;
+                }}
+
+                renderInputToolbar={(props) =>
+                    /*<InputToolbar {...props}/>*/
+                    <MessageInput
+                        conversation={conversation}
+                        messageReplyTo={null}
+                        removeMessageReplyTo={() => setMessageReplyTo(null)}
+                    />}
+                user={{
+                    _id: account?.id,
+                    ...account
+                }}
             />
         </SafeAreaView>
     );
@@ -128,6 +292,19 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: "white",
         flex: 1,
+    },
+    dateDividerContainer: {
+        backgroundColor: '#ebebeb',
+        borderRadius: 12,
+        marginVertical: 8,
+        alignSelf: 'center',
+    },
+    dateDividerText: {
+        textAlign: 'center',
+        fontWeight: 'bold',
+        fontSize: 12,
+        padding: 8,
+        color: 'gray',
     },
     titleText: {
         fontWeight: 'bold',

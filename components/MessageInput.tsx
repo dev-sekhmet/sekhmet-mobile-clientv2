@@ -1,7 +1,6 @@
 import React, {useEffect, useState} from 'react';
-import {Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,} from 'react-native';
-import {AntDesign, Feather, Ionicons, MaterialCommunityIcons, SimpleLineIcons,} from '@expo/vector-icons';
-import EmojiSelector from 'react-native-emoji-selector';
+import {Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View,} from 'react-native';
+import {AntDesign, Feather, Ionicons, MaterialCommunityIcons,} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {Audio} from 'expo-av';
 import AudioPlayer from './media/AudioPlayer';
@@ -10,18 +9,23 @@ import {useNavigation} from '@react-navigation/core';
 import Colors from "../constants/Colors";
 import {Conversation} from "@twilio/conversations";
 import {Message} from "../constants/Type";
-import {ImagePickerAsset} from "expo-image-picker/src/ImagePicker.types";
+import {ImagePickerResult} from "expo-image-picker/src/ImagePicker.types";
 import {RecordingOptionsPresets} from "expo-av/src/Audio/RecordingConstants";
+import {Composer} from "react-native-gifted-chat/lib/Composer";
+import VideoPlayer from "./media/VideoPlayer";
 
 
 const MessageInput = ({
                           conversation,
                           messageReplyTo,
-                          removeMessageReplyTo
-                      }: { conversation: Conversation | null, messageReplyTo: Message| null, removeMessageReplyTo: () => void }) => {
+                          removeMessageReplyTo,
+                      }: {
+    conversation: Conversation | null,
+    messageReplyTo: Message | null,
+    removeMessageReplyTo: () => void,
+}) => {
 
-    const [message, setMessage] = useState("");
-    const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+    const [inputMessageText, setInputMessageText] = useState("");
     const [image, setImage] = useState<string | null>(null);
     const [progress, setProgress] = useState(0);
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -47,16 +51,21 @@ const MessageInput = ({
         // Currently, Conversations SDK doesn't have a direct way to indicate "typing ended",
         // but it automatically stops showing a user as typing after 5 seconds without a new typing indicator.
     };
+    const getRecordingPermission = async () => {
+
+    };
+
     useEffect(() => {
+        setupAudioMode();
         (async () => {
             if (Platform.OS !== "web") {
                 const libraryResponse =
                     await ImagePicker.requestMediaLibraryPermissionsAsync();
                 const photoResponse = await ImagePicker.requestCameraPermissionsAsync();
-                await Audio.requestPermissionsAsync();
-
+                const audioResponse = await Audio.requestPermissionsAsync();
                 if (
                     libraryResponse.status !== "granted" ||
+                    audioResponse.status !== "granted" ||
                     photoResponse.status !== "granted"
                 ) {
                     alert("Sorry, we need camera roll permissions to make this work!");
@@ -69,12 +78,27 @@ const MessageInput = ({
 
     }, []);
 
+    const setupAudioMode = async () => {
+        try {
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: true,
+                shouldDuckAndroid: true,
+            });
+        } catch (error) {
+            console.error('Error setting up audio mode', error);
+        }
+    };
+
+
+
 
     const sendMessage = async () => {
-        if (!conversation || !message) return;
+        if (!conversation || !inputMessageText.trim()) return;
 
         try {
-            return await conversation.sendMessage(message);
+            return await conversation.sendMessage(inputMessageText.trim());
         } catch (error) {
             console.error("Failed to send message:", error);
             // Optionally, notify the user about the error
@@ -99,8 +123,7 @@ const MessageInput = ({
     };
 
     const resetFields = () => {
-        setMessage("");
-        setIsEmojiPickerOpen(false);
+        setInputMessageText("");
         setImage(null);
         setProgress(0);
         setSoundURI(null);
@@ -108,36 +131,35 @@ const MessageInput = ({
         removeMessageReplyTo();
     };
 
-    const setImageOrVideoUri = (result: ImagePickerAsset) => {
-        if (result.assetId) {
-            if (result.type === 'video') {
-                setVideoURI(result.uri);
+    const setImageOrVideoUri = (result: ImagePickerResult) => {
+        console.log("result", result);
+        if (!result.canceled) {
+            var asset = result.assets[0];
+            if (asset.type === 'video') {
+                setVideoURI(asset.uri);
             }
-            if (result.type === 'image') {
-                setImage(result.uri);
+            if (asset.type === 'image') {
+                setImage(asset.uri);
             }
         }
     }
 
 // Image picker
-    const pickImage = async () => {
+    const pickMedia = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.All,
             allowsEditing: true,
             aspect: [4, 3],
             quality: 0.5,
         });
-        console.log("result", result);
-        // @ts-ignore
         setImageOrVideoUri(result);
     };
 
-    const takePhoto = async () => {
+    const takeMedia = async () => {
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.All,
             aspect: [4, 3],
         });
-        // @ts-ignore
         setImageOrVideoUri(result);
     };
 
@@ -153,25 +175,20 @@ const MessageInput = ({
         return {filename, type};
     }
 
-    async function startRecording() {
+    const startRecording = async () => {
         try {
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-            });
-
-            console.log("Starting recording..");
-            const {recording} = await Audio.Recording.createAsync(
-                RecordingOptionsPresets.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-            );
-            setRecording(recording);
-            console.log("Recording started");
-        } catch (err) {
-            console.error("Failed to start recording", err);
+            await setupAudioMode(); // Ensure the correct audio mode is set
+            const newRecording = new Audio.Recording();
+            await newRecording.prepareToRecordAsync(RecordingOptionsPresets.HIGH_QUALITY);
+            await newRecording.startAsync();
+            setRecording(newRecording);
+        } catch (error) {
+            console.error('Failed to start recording:', error);
         }
-    }
+    };
 
-    async function stopRecording() {
+
+    const stopRecording = async () => {
         console.log("Stopping recording..");
         if (!recording) {
             return;
@@ -197,6 +214,7 @@ const MessageInput = ({
         }
         const fileData = new FormData();
         let {filename, type} = buildFileInfo(typeMedia, mediaURI);
+        console.log("filename and type", filename, type);
         // @ts-ignore
         fileData.append(typeMedia, {uri: mediaURI, name: filename, type});
         return await conversation?.sendMessage(fileData);
@@ -211,16 +229,15 @@ const MessageInput = ({
         return sendMedia(image, "image");
     };
 
-
     const sendVideo = async () => {
         return sendMedia(videoURI, "video");
     };
 
     return (
         <KeyboardAvoidingView
-            style={[styles.root, {height: isEmojiPickerOpen ? "50%" : "auto"}]}
+            style={[Platform.OS === "android" ?styles.root:null, {height: "auto", padding:10}]}
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={100}
+            keyboardVerticalOffset={50}
         >
             {messageReplyTo && (
                 <View
@@ -230,8 +247,7 @@ const MessageInput = ({
                         flexDirection: "row",
                         alignSelf: "stretch",
                         justifyContent: "space-between",
-                    }}
-                >
+                    }}>
                     <View style={{flex: 1}}>
                         <Text>Reply to:</Text>
                         <MessageBox message={messageReplyTo}/>
@@ -247,31 +263,20 @@ const MessageInput = ({
                 </View>
             )}
 
-            {image && (
+            {(image || soundURI || videoURI) && (
                 <View style={styles.sendImageContainer}>
-                    <Image
+                    {image && <Image
                         source={{uri: image}}
                         style={{width: 100, height: 100, borderRadius: 10}}
-                    />
-
-                    <View
-                        style={{
-                            flex: 1,
-                            justifyContent: "flex-start",
-                            alignSelf: "flex-end",
-                        }}
-                    >
-                        <View
-                            style={{
-                                height: 5,
-                                borderRadius: 5,
-                                backgroundColor: "#3777f0",
-                                width: `${progress * 100}%`,
-                            }}
-                        />
-                    </View>
-
-                    <Pressable onPress={() => setImage(null)}>
+                    />}
+                    {soundURI && <AudioPlayer
+                        soundURI={soundURI}/>}
+                    {videoURI && <VideoPlayer uri={videoURI}/>}
+                    <Pressable onPress={() => {
+                        setImage(null);
+                        setVideoURI(null);
+                        setSoundURI(null);
+                    }}>
                         <AntDesign
                             name="close"
                             size={24}
@@ -281,40 +286,21 @@ const MessageInput = ({
                     </Pressable>
                 </View>
             )}
-
-            {soundURI && <AudioPlayer soundURI={soundURI}/>}
-            {/*            {videoURI && <VideoPlayer
-                style={{
-                    minHeight: 150,
-                    minWidth: 150
-                }} uri={videoURI}/>}*/}
-
             <View style={styles.row}>
                 <View style={styles.inputContainer}>
-                    <Pressable
-                        onPress={() =>
-                            setIsEmojiPickerOpen((currentValue) => !currentValue)
-                        }
-                    >
-                        <SimpleLineIcons
-                            name="emotsmile"
-                            size={24}
-                            color="#595959"
-                            style={styles.icon}
-                        />
-                    </Pressable>
 
-                    <TextInput
-                        style={styles.input}
-                        value={message}
-                        onChangeText={(text) => {
-                            setMessage(text);
-                            startTyping();
-                        }}
-                        placeholder="Votre message..."
-                    />
+                    <Composer placeholder="Votre message..."
+                              textInputProps={{
+                                  style: styles.input,
+                                  value: inputMessageText
+                              }}
+                              onTextChanged={(text) => {
+                                  setInputMessageText(text);
+                                  startTyping();
+                              }}
+                              multiline={true}/>
 
-                    <Pressable onPress={pickImage}>
+                    <Pressable onPress={pickMedia}>
                         <Feather
                             name="image"
                             size={24}
@@ -323,7 +309,7 @@ const MessageInput = ({
                         />
                     </Pressable>
 
-                    <Pressable onPress={takePhoto}>
+                    <Pressable onPress={takeMedia}>
                         <Feather
                             name="camera"
                             size={24}
@@ -336,36 +322,33 @@ const MessageInput = ({
                         <MaterialCommunityIcons
                             name={recording ? "microphone" : "microphone-outline"}
                             size={24}
-                            color={recording ? "red" : "#595959"}
+                            color={recording ? Colors.light.sekhmetOrange : "#595959"}
                             style={styles.icon}
                         />
                     </Pressable>
                 </View>
 
-                <Pressable onPress={onPress} style={styles.buttonContainer}>
-                    {message || image || videoURI || soundURI ? (
+                <Pressable onPress={onPress} style={({ pressed }) => [
+                    styles.buttonContainer,
+                    { opacity: pressed ? 0.7 : 1 }
+                ]}>
+                    {inputMessageText.trim() || image || videoURI || soundURI ? (
                         <Ionicons name="send" size={18} color={"white"}/>
                     ) : (
                         <AntDesign name="plus" size={24} color="white"/>
                     )}
                 </Pressable>
             </View>
-
-            {isEmojiPickerOpen && (
-                <EmojiSelector
-                    onEmojiSelected={(emoji) =>
-                        setMessage((currentMessage) => currentMessage + emoji)
-                    }
-                    columns={8}
-                />
-            )}
         </KeyboardAvoidingView>
     );
 };
 
 const styles = StyleSheet.create({
     root: {
-        padding: 10,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        position: "absolute",
     },
     row: {
         flexDirection: "row",
@@ -383,6 +366,7 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
+        maxHeight: 100,
         marginHorizontal: 5,
     },
     icon: {
@@ -402,6 +386,10 @@ const styles = StyleSheet.create({
     },
 
     sendImageContainer: {
+        bottom: 35,
+        left: 0,
+        right: 0,
+        position: "absolute",
         flexDirection: "row",
         marginVertical: 10,
         alignSelf: "stretch",

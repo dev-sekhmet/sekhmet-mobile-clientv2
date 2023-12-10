@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View,} from 'react-native';
+import {Image, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View,} from 'react-native';
 import {AntDesign, Feather, Ionicons, MaterialCommunityIcons,} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {Audio} from 'expo-av';
@@ -9,9 +9,10 @@ import {useNavigation} from '@react-navigation/core';
 import Colors from "../constants/Colors";
 import {Conversation} from "@twilio/conversations";
 import {Message} from "../constants/Type";
-import {ImagePickerAsset, ImagePickerResult} from "expo-image-picker/src/ImagePicker.types";
+import {ImagePickerResult} from "expo-image-picker/src/ImagePicker.types";
 import {RecordingOptionsPresets} from "expo-av/src/Audio/RecordingConstants";
-import {Composer, ComposerProps} from "react-native-gifted-chat/lib/Composer";
+import {Composer} from "react-native-gifted-chat/lib/Composer";
+import VideoPlayer from "./media/VideoPlayer";
 
 
 const MessageInput = ({
@@ -50,16 +51,21 @@ const MessageInput = ({
         // Currently, Conversations SDK doesn't have a direct way to indicate "typing ended",
         // but it automatically stops showing a user as typing after 5 seconds without a new typing indicator.
     };
+    const getRecordingPermission = async () => {
+
+    };
+
     useEffect(() => {
+        setupAudioMode();
         (async () => {
             if (Platform.OS !== "web") {
                 const libraryResponse =
                     await ImagePicker.requestMediaLibraryPermissionsAsync();
                 const photoResponse = await ImagePicker.requestCameraPermissionsAsync();
-                await Audio.requestPermissionsAsync();
-
+                const audioResponse = await Audio.requestPermissionsAsync();
                 if (
                     libraryResponse.status !== "granted" ||
+                    audioResponse.status !== "granted" ||
                     photoResponse.status !== "granted"
                 ) {
                     alert("Sorry, we need camera roll permissions to make this work!");
@@ -71,6 +77,21 @@ const MessageInput = ({
         };
 
     }, []);
+
+    const setupAudioMode = async () => {
+        try {
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
+                staysActiveInBackground: true,
+                shouldDuckAndroid: true,
+            });
+        } catch (error) {
+            console.error('Error setting up audio mode', error);
+        }
+    };
+
+
 
 
     const sendMessage = async () => {
@@ -124,9 +145,9 @@ const MessageInput = ({
     }
 
 // Image picker
-    const pickImage = async () => {
+    const pickMedia = async () => {
         const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            mediaTypes: ImagePicker.MediaTypeOptions.All,
             allowsEditing: true,
             aspect: [4, 3],
             quality: 0.5,
@@ -134,7 +155,7 @@ const MessageInput = ({
         setImageOrVideoUri(result);
     };
 
-    const takePhoto = async () => {
+    const takeMedia = async () => {
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.All,
             aspect: [4, 3],
@@ -154,25 +175,20 @@ const MessageInput = ({
         return {filename, type};
     }
 
-    async function startRecording() {
+    const startRecording = async () => {
         try {
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-            });
-
-            console.log("Starting recording..");
-            const {recording} = await Audio.Recording.createAsync(
-                RecordingOptionsPresets.RECORDING_OPTIONS_PRESET_HIGH_QUALITY
-            );
-            setRecording(recording);
-            console.log("Recording started");
-        } catch (err) {
-            console.error("Failed to start recording", err);
+            await setupAudioMode(); // Ensure the correct audio mode is set
+            const newRecording = new Audio.Recording();
+            await newRecording.prepareToRecordAsync(RecordingOptionsPresets.HIGH_QUALITY);
+            await newRecording.startAsync();
+            setRecording(newRecording);
+        } catch (error) {
+            console.error('Failed to start recording:', error);
         }
-    }
+    };
 
-    async function stopRecording() {
+
+    const stopRecording = async () => {
         console.log("Stopping recording..");
         if (!recording) {
             return;
@@ -198,6 +214,7 @@ const MessageInput = ({
         }
         const fileData = new FormData();
         let {filename, type} = buildFileInfo(typeMedia, mediaURI);
+        console.log("filename and type", filename, type);
         // @ts-ignore
         fileData.append(typeMedia, {uri: mediaURI, name: filename, type});
         return await conversation?.sendMessage(fileData);
@@ -246,31 +263,20 @@ const MessageInput = ({
                 </View>
             )}
 
-            {image && (
+            {(image || soundURI || videoURI) && (
                 <View style={styles.sendImageContainer}>
-                    <Image
+                    {image && <Image
                         source={{uri: image}}
                         style={{width: 100, height: 100, borderRadius: 10}}
-                    />
-
-                    <View
-                        style={{
-                            flex: 1,
-                            justifyContent: "flex-start",
-                            alignSelf: "flex-end",
-                        }}
-                    >
-                        <View
-                            style={{
-                                height: 5,
-                                borderRadius: 5,
-                                backgroundColor: "#3777f0",
-                                width: `${progress * 100}%`,
-                            }}
-                        />
-                    </View>
-
-                    <Pressable onPress={() => setImage(null)}>
+                    />}
+                    {soundURI && <AudioPlayer
+                        soundURI={soundURI}/>}
+                    {videoURI && <VideoPlayer uri={videoURI}/>}
+                    <Pressable onPress={() => {
+                        setImage(null);
+                        setVideoURI(null);
+                        setSoundURI(null);
+                    }}>
                         <AntDesign
                             name="close"
                             size={24}
@@ -280,14 +286,6 @@ const MessageInput = ({
                     </Pressable>
                 </View>
             )}
-
-            {soundURI && <AudioPlayer soundURI={soundURI}/>}
-            {/*            {videoURI && <VideoPlayer
-                style={{
-                    minHeight: 150,
-                    minWidth: 150
-                }} uri={videoURI}/>}*/}
-
             <View style={styles.row}>
                 <View style={styles.inputContainer}>
 
@@ -302,7 +300,7 @@ const MessageInput = ({
                               }}
                               multiline={true}/>
 
-                    <Pressable onPress={pickImage}>
+                    <Pressable onPress={pickMedia}>
                         <Feather
                             name="image"
                             size={24}
@@ -311,7 +309,7 @@ const MessageInput = ({
                         />
                     </Pressable>
 
-                    <Pressable onPress={takePhoto}>
+                    <Pressable onPress={takeMedia}>
                         <Feather
                             name="camera"
                             size={24}
@@ -324,7 +322,7 @@ const MessageInput = ({
                         <MaterialCommunityIcons
                             name={recording ? "microphone" : "microphone-outline"}
                             size={24}
-                            color={recording ? "red" : "#595959"}
+                            color={recording ? Colors.light.sekhmetOrange : "#595959"}
                             style={styles.icon}
                         />
                     </Pressable>
@@ -388,6 +386,10 @@ const styles = StyleSheet.create({
     },
 
     sendImageContainer: {
+        bottom: 35,
+        left: 0,
+        right: 0,
+        position: "absolute",
         flexDirection: "row",
         marginVertical: 10,
         alignSelf: "stretch",

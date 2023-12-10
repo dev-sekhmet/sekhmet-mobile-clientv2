@@ -1,6 +1,6 @@
-import {Alert, FlatList, Pressable, SafeAreaView, StyleSheet} from 'react-native';
+import {Alert, Pressable, SafeAreaView, StyleSheet} from 'react-native';
 import {Text, View} from '../../components/Themed';
-import {Link, useLocalSearchParams, useNavigation} from "expo-router";
+import {useLocalSearchParams, useNavigation} from "expo-router";
 import React, {useContext, useEffect, useRef, useState} from "react";
 import {AppContext} from "../../components/AppContext";
 import useConversation from "../../hooks/useConversation";
@@ -9,14 +9,15 @@ import {displayConversationName, getWhatsAppFormattedDate} from "../../shared/co
 import {Message as TwilioMessage, User} from "@twilio/conversations";
 import useAccount from "../../hooks/useAccount";
 import 'moment/locale/fr'
-import {Message} from "../../constants/Type";
 import Moment from "moment/moment";
-import {GiftedChat, IMessage, InputToolbar, LoadEarlier} from "react-native-gifted-chat";
+import {GiftedChat, IMessage, LoadEarlier} from "react-native-gifted-chat";
 import 'dayjs/locale/fr'
 import {useActionSheet} from "@expo/react-native-action-sheet";
 import MessageInput from "../../components/MessageInput";
 import {Ionicons} from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
+import AudioPlayer from "../../components/media/AudioPlayer";
+import VideoPlayer from "../../components/media/VideoPlayer";
 
 
 const HeaderTitle = ({title, typing}: { title: string, typing: boolean }) => {
@@ -95,13 +96,20 @@ const ConversationSrreen = () => {
     const giftedChatRef = useRef<any>();
 
 
-    const getMedia = async (message: TwilioMessage) => {
-        return message.attachedMedia && message.attachedMedia.length>0? await message.attachedMedia[0].getContentTemporaryUrl():'';
+    const getMedia = async (message: TwilioMessage, type: 'image' | 'video' | 'audio' | 'application') => {
+        const media = message.attachedMedia && message.attachedMedia.length > 0 ? message.attachedMedia[0] : null;
+        if (media) {
+            console.log('media', media.contentType, media.contentType === 'image/jpeg');
+        }
+        return await media?.contentType.startsWith(type) ? media?.getContentTemporaryUrl() : null;
     }
     const mapToGiftedChatMessages = async (items: TwilioMessage[]) => {
+        console.log('mapToGiftedChatMessages items', items.length);
         const messagesWithAuthors = await Promise.all(items.map(async twilioMessage => {
             const user = await twilioClient?.getUser(twilioMessage.author || '');
-            const image =  (await getMedia(twilioMessage)) ?? undefined;
+            const image = (await getMedia(twilioMessage, 'image')) ?? undefined;
+            const video = (await getMedia(twilioMessage, 'video')) ?? undefined;
+            const audio = (await getMedia(twilioMessage, 'application')) ?? undefined;
             return {
                 _id: twilioMessage.sid,
                 text: twilioMessage.body || '',
@@ -112,7 +120,10 @@ const ConversationSrreen = () => {
                     avatar: 'https://placeimg.com/140/140/any',
                 },
                 image,
+                video,
+                audio,
                 deleted: false,
+                embeded: twilioMessage
             }
         }));
 
@@ -169,8 +180,8 @@ const ConversationSrreen = () => {
     }
 
 
-    const deleteMessage = async () => {
-        //message.twilioMessage.remove();
+    const deleteMessage = async (message: any) => {
+        message.embeded?.remove();
     };
 
     const confirmDelete = (message: IMessage) => {
@@ -180,7 +191,7 @@ const ConversationSrreen = () => {
                 [
                     {
                         text: "Supprimer",
-                        onPress: deleteMessage,
+                        onPress: ()=>deleteMessage(message),
                         style: "destructive",
                     },
                     {
@@ -250,6 +261,14 @@ const ConversationSrreen = () => {
                 onLongPress={(context, message)=>{
                     openActionMenu(message);
                 }}
+                renderMessageAudio={props => {
+                    return <AudioPlayer soundURI={props.currentMessage?.audio || null}/>
+                }}
+                renderMessageVideo={props => {
+                    const isCurrentUser = props.currentMessage?.user._id === account?.id; // Adjust based on how you determine the current user
+                    return <VideoPlayer uri={props.currentMessage?.video || ''} isCurrentUser={isCurrentUser} />;
+                }}
+
                 renderInputToolbar={(props) =>
                     /*<InputToolbar {...props}/>*/
                     <MessageInput
